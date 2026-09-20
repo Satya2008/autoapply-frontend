@@ -1,109 +1,240 @@
-import { useState, useEffect } from 'react'
-import { applyApi } from '../services/api'
-import { CheckCircle, XCircle, Clock, Play } from 'lucide-react'
-
-const statusConfig = {
-  APPLIED:   { color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  FAILED:    { color: 'bg-red-100 text-red-700', icon: XCircle },
-  PENDING:   { color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  INTERVIEW: { color: 'bg-purple-100 text-purple-700', icon: CheckCircle },
-  REJECTED:  { color: 'bg-gray-100 text-gray-600', icon: XCircle },
-}
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Building2,
+  Calendar,
+  ExternalLink,
+  FileText,
+  Play,
+  Search,
+} from 'lucide-react'
+import { applyApi, errorMessage } from '../services/api'
+import { useApp } from '../store/AppContext'
+import {
+  Button,
+  Card,
+  EmptyState,
+  Modal,
+  PageHeader,
+  ScoreRing,
+  Skeleton,
+  StatusBadge,
+} from '../components/ui'
 
 export default function Applications() {
-  const [apps, setApps] = useState([])
+  const { toast } = useApp()
+  const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
-  const userId = localStorage.getItem('userId')
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('ALL')
+  const [selected, setSelected] = useState(null)
 
-  useEffect(() => { loadApps() }, [])
-
-  const loadApps = async () => {
+  const load = async () => {
     try {
-      const res = await applyApi.getHistory(userId)
-      setApps(res.data)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+      setApplications(await applyApi.history())
+    } catch (error) {
+      toast(errorMessage(error, 'Could not load applications'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const startAutoApply = async () => {
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const run = async () => {
     setRunning(true)
+    toast('Auto apply started…', 'info')
     try {
-      await applyApi.startAutoApply(userId)
-      alert('Auto apply started! Check back in a few minutes.')
-      setTimeout(loadApps, 5000)
-    } catch (e) { console.error(e) }
-    finally { setRunning(false) }
+      const result = await applyApi.run()
+      toast(`${result.applied} applications sent · ${result.failed} failed`, 'success')
+      await load()
+    } catch (error) {
+      toast(errorMessage(error), 'error')
+    } finally {
+      setRunning(false)
+    }
   }
 
-  const stats = {
-    total: apps.length,
-    applied: apps.filter(a => a.status === 'APPLIED').length,
-    interview: apps.filter(a => a.status === 'INTERVIEW').length,
-    rejected: apps.filter(a => a.status === 'REJECTED').length,
-  }
+  const statuses = useMemo(
+    () => ['ALL', ...new Set(applications.map((a) => a.status).filter(Boolean))],
+    [applications],
+  )
 
-  if (loading) return <div className="text-center py-16 text-gray-400">Loading...</div>
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return applications
+      .filter((a) => (status === 'ALL' ? true : a.status === status))
+      .filter((a) =>
+        needle
+          ? `${a.jobTitle} ${a.employerName}`.toLowerCase().includes(needle)
+          : true,
+      )
+  }, [applications, query, status])
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Applications</h1>
-        <button onClick={startAutoApply} disabled={running}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-          <Play size={16} />
-          {running ? 'Starting...' : 'Start Auto Apply'}
-        </button>
+    <div className="animate-in">
+      <PageHeader
+        icon={FileText}
+        title="Applications"
+        subtitle={`${applications.length} applications tracked`}
+        actions={
+          <Button icon={Play} loading={running} onClick={run}>
+            Run auto apply
+          </Button>
+        }
+      />
+
+      <div className="mb-5 flex flex-wrap gap-3">
+        <div className="relative min-w-[16rem] flex-1">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'rgb(var(--text-dim))' }}
+          />
+          <input
+            className="input pl-9"
+            placeholder="Search applications…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
+          {statuses.map((s) => (
+            <option key={s} value={s}>
+              {s === 'ALL' ? 'All statuses' : s.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total', value: stats.total, color: 'bg-blue-50 text-blue-700' },
-          { label: 'Applied', value: stats.applied, color: 'bg-green-50 text-green-700' },
-          { label: 'Interview', value: stats.interview, color: 'bg-purple-50 text-purple-700' },
-          { label: 'Rejected', value: stats.rejected, color: 'bg-red-50 text-red-700' },
-        ].map(s => (
-          <div key={s.label} className={`${s.color} rounded-xl p-4 text-center`}>
-            <p className="text-3xl font-bold">{s.value}</p>
-            <p className="text-sm font-medium">{s.label}</p>
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-2xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={FileText}
+            title={applications.length === 0 ? 'No applications yet' : 'Nothing matches that filter'}
+            description={
+              applications.length === 0
+                ? 'Run auto apply, or let the scheduler do it on its own.'
+                : 'Try another search term or status.'
+            }
+            action={
+              applications.length === 0 ? (
+                <Button icon={Play} loading={running} onClick={run}>
+                  Run auto apply
+                </Button>
+              ) : null
+            }
+          />
+        </Card>
+      ) : (
+        <Card>
+          <div className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
+            {filtered.map((application) => (
+              <button
+                key={application.id}
+                onClick={() => setSelected(application)}
+                className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]"
+              >
+                {application.matchScore != null ? (
+                  <ScoreRing score={application.matchScore} size={40} />
+                ) : (
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ background: 'rgb(var(--surface-2))' }}
+                  >
+                    <Building2 size={15} style={{ color: 'rgb(var(--text-dim))' }} />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{application.jobTitle}</p>
+                  <p className="truncate text-xs" style={{ color: 'rgb(var(--text-muted))' }}>
+                    {application.employerName}
+                    {application.portal ? ` · ${application.portal}` : ''}
+                  </p>
+                </div>
+
+                <div className="hidden items-center gap-1.5 text-xs sm:flex" style={{ color: 'rgb(var(--text-dim))' }}>
+                  <Calendar size={12} />
+                  {new Date(application.appliedAt).toLocaleDateString()}
+                </div>
+
+                <StatusBadge status={application.status} />
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </Card>
+      )}
 
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              {['Job Title', 'Company', 'Portal', 'Status', 'Applied At'].map(h => (
-                <th key={h} className="text-left px-6 py-4 font-semibold text-gray-600">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {apps.map(app => {
-              const sc = statusConfig[app.status] || statusConfig.PENDING
-              return (
-                <tr key={app.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-800">{app.jobTitle}</td>
-                  <td className="px-6 py-4 text-gray-600">{app.employerName}</td>
-                  <td className="px-6 py-4 text-gray-600">{app.portal}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${sc.color}`}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500">
-                    {new Date(app.appliedAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {apps.length === 0 && (
-          <div className="text-center py-16 text-gray-400">No applications yet. Run auto apply!</div>
+      <Modal
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title={selected?.jobTitle || 'Application'}
+      >
+        {selected && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge status={selected.status} />
+              {selected.matchScore != null && <ScoreRing score={selected.matchScore} size={38} />}
+              <span className="text-xs" style={{ color: 'rgb(var(--text-dim))' }}>
+                Attempt {selected.attemptCount} · {new Date(selected.appliedAt).toLocaleString()}
+              </span>
+            </div>
+
+            <Detail label="Company" value={selected.employerName} />
+            <Detail label="Portal" value={selected.portal} />
+            {selected.message && <Detail label="Result" value={selected.message} />}
+            {selected.nextRetryAt && (
+              <Detail label="Next retry" value={new Date(selected.nextRetryAt).toLocaleString()} />
+            )}
+            {selected.screenshotPath && <Detail label="Screenshot saved to" value={selected.screenshotPath} />}
+
+            {selected.coverLetter && (
+              <div>
+                <p className="label">Cover letter used</p>
+                <pre
+                  className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl p-3.5 text-xs leading-relaxed"
+                  style={{ background: 'rgb(var(--bg) / 0.6)', border: '1px solid rgb(var(--border))' }}
+                >
+                  {selected.coverLetter}
+                </pre>
+              </div>
+            )}
+
+            {selected.applyLink && (
+              <a
+                href={selected.applyLink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: 'rgb(var(--accent))' }}
+              >
+                Open the original posting
+                <ExternalLink size={13} />
+              </a>
+            )}
+          </div>
         )}
-      </div>
+      </Modal>
+    </div>
+  )
+}
+
+function Detail({ label, value }) {
+  if (!value) return null
+  return (
+    <div>
+      <p className="label">{label}</p>
+      <p className="break-words text-sm">{value}</p>
     </div>
   )
 }

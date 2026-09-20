@@ -1,56 +1,193 @@
-import { useState, useEffect } from 'react'
-import { authApi } from '../services/api'
-import api from '../services/api'
+import { useEffect, useState } from 'react'
+import { Bell, KeyRound, Save, Settings as SettingsIcon, Target, Zap } from 'lucide-react'
+import { authApi, errorMessage } from '../services/api'
+import { useApp } from '../store/AppContext'
+import { Button, Card, Field, PageHeader, TagInput, Toggle } from '../components/ui'
 
 export default function Settings() {
-  const [settings, setSettings] = useState({ autoApplyEnabled: false, preferredJobType: 'FULLTIME' })
-  const [saved, setSaved] = useState(false)
+  const { user, refreshProfile, toast } = useApp()
+  const [form, setForm] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' })
+  const [changing, setChanging] = useState(false)
 
   useEffect(() => {
-    authApi.getProfile().then(res => {
-      setSettings({
-        autoApplyEnabled: res.data.autoApplyEnabled || false,
-        preferredJobType: res.data.preferredJobType || 'FULLTIME',
+    if (user) {
+      setForm({
+        autoApplyEnabled: user.autoApplyEnabled ?? false,
+        notificationsEnabled: user.notificationsEnabled ?? true,
+        dailyApplyLimit: user.dailyApplyLimit ?? '',
+        minMatchScore: user.minMatchScore ?? '',
+        excludedCompanies: user.excludedCompanies || [],
+        excludedKeywords: user.excludedKeywords || [],
       })
-    })
-  }, [])
+    }
+  }, [user])
 
-  const handleSave = async () => {
+  if (!form) return null
+
+  const save = async () => {
+    setSaving(true)
     try {
-      await api.put('/auth/profile', settings)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (e) { console.error(e) }
+      await authApi.updateProfile({
+        ...form,
+        dailyApplyLimit: form.dailyApplyLimit === '' ? null : Number(form.dailyApplyLimit),
+        minMatchScore: form.minMatchScore === '' ? null : Number(form.minMatchScore),
+      })
+      await refreshProfile()
+      toast('Preferences saved', 'success')
+    } catch (error) {
+      toast(errorMessage(error), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const changePassword = async (e) => {
+    e.preventDefault()
+    setChanging(true)
+    try {
+      await authApi.changePassword(passwords)
+      toast('Password changed. Sign in again on your other devices.', 'success')
+      setPasswords({ currentPassword: '', newPassword: '' })
+    } catch (error) {
+      toast(errorMessage(error), 'error')
+    } finally {
+      setChanging(false)
+    }
   }
 
   return (
-    <div className="max-w-lg">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Settings</h1>
-      <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-800">Auto Apply</h3>
-            <p className="text-sm text-gray-500">Automatically apply to matched jobs (max 15/day)</p>
+    <div className="animate-in">
+      <PageHeader
+        icon={SettingsIcon}
+        title="Preferences"
+        subtitle="How aggressively the system works on your behalf."
+        actions={
+          <Button icon={Save} loading={saving} onClick={save}>
+            Save preferences
+          </Button>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Zap size={15} style={{ color: 'rgb(var(--accent))' }} />
+            <h2 className="text-sm font-semibold">Automation</h2>
           </div>
-          <button onClick={() => setSettings({...settings, autoApplyEnabled: !settings.autoApplyEnabled})}
-            className={`relative w-14 h-7 rounded-full transition-colors ${settings.autoApplyEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
-            <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${settings.autoApplyEnabled ? 'left-8' : 'left-1'}`} />
-          </button>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Job Type</label>
-          <select value={settings.preferredJobType} onChange={e => setSettings({...settings, preferredJobType: e.target.value})}
-            className="w-full border rounded-lg px-4 py-3 outline-none focus:border-blue-500">
-            <option value="FULLTIME">Full Time</option>
-            <option value="REMOTE">Remote</option>
-            <option value="HYBRID">Hybrid</option>
-            <option value="PARTTIME">Part Time</option>
-          </select>
-        </div>
-        <button onClick={handleSave}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
-          {saved ? 'Saved!' : 'Save Settings'}
-        </button>
+          <div className="space-y-5">
+            <Toggle
+              checked={form.autoApplyEnabled}
+              onChange={(autoApplyEnabled) => setForm({ ...form, autoApplyEnabled })}
+              label="Auto apply"
+              description="Let the scheduler submit applications to roles that clear your score threshold."
+            />
+            <Toggle
+              checked={form.notificationsEnabled}
+              onChange={(notificationsEnabled) => setForm({ ...form, notificationsEnabled })}
+              label="Notifications"
+              description="Get told when an application goes out or new matches land."
+            />
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Target size={15} style={{ color: 'rgb(var(--accent-2))' }} />
+            <h2 className="text-sm font-semibold">Limits</h2>
+          </div>
+          <div className="space-y-4">
+            <Field
+              label="Daily application limit"
+              hint="Leave empty to use the system default set by your administrator."
+            >
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max="200"
+                placeholder="System default"
+                value={form.dailyApplyLimit}
+                onChange={(e) => setForm({ ...form, dailyApplyLimit: e.target.value })}
+              />
+            </Field>
+            <Field
+              label="Minimum match score"
+              hint="Only apply to roles scoring at least this. Higher means fewer, better-fitting applications."
+            >
+              <input
+                className="input"
+                type="number"
+                min="0"
+                max="100"
+                placeholder="System default"
+                value={form.minMatchScore}
+                onChange={(e) => setForm({ ...form, minMatchScore: e.target.value })}
+              />
+            </Field>
+          </div>
+        </Card>
+
+        <Card className="p-5 lg:col-span-2">
+          <div className="mb-1 flex items-center gap-2">
+            <Bell size={15} style={{ color: 'rgb(var(--warning))' }} />
+            <h2 className="text-sm font-semibold">Exclusions</h2>
+          </div>
+          <p className="mb-4 text-xs" style={{ color: 'rgb(var(--text-muted))' }}>
+            Anything listed here is skipped before a job is even scored.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Companies to skip">
+              <TagInput
+                value={form.excludedCompanies}
+                onChange={(excludedCompanies) => setForm({ ...form, excludedCompanies })}
+                placeholder="Companies you do not want…"
+              />
+            </Field>
+            <Field label="Keywords to skip">
+              <TagInput
+                value={form.excludedKeywords}
+                onChange={(excludedKeywords) => setForm({ ...form, excludedKeywords })}
+                placeholder="unpaid, commission only, night shift…"
+              />
+            </Field>
+          </div>
+        </Card>
+
+        <Card className="p-5 lg:col-span-2">
+          <div className="mb-4 flex items-center gap-2">
+            <KeyRound size={15} style={{ color: 'rgb(var(--danger))' }} />
+            <h2 className="text-sm font-semibold">Change password</h2>
+          </div>
+          <form onSubmit={changePassword} className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[14rem] flex-1">
+              <Field label="Current password">
+                <input
+                  className="input"
+                  type="password"
+                  required
+                  value={passwords.currentPassword}
+                  onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                />
+              </Field>
+            </div>
+            <div className="min-w-[14rem] flex-1">
+              <Field label="New password">
+                <input
+                  className="input"
+                  type="password"
+                  required
+                  value={passwords.newPassword}
+                  onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                />
+              </Field>
+            </div>
+            <Button type="submit" variant="ghost" loading={changing}>
+              Update password
+            </Button>
+          </form>
+        </Card>
       </div>
     </div>
   )
