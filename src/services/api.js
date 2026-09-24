@@ -90,6 +90,9 @@ export const applyApi = {
   run: () => unwrap(api.post('/apply/run')),
   history: () => unwrap(api.get('/apply/history')),
   stats: () => unwrap(api.get('/apply/stats')),
+  assisted: () => unwrap(api.get('/apply/assisted')),
+  markAssistedDone: (id) => unwrap(api.post(`/apply/assisted/${id}/done`)),
+  skipAssisted: (id) => unwrap(api.post(`/apply/assisted/${id}/skip`)),
 }
 
 export const adminApi = {

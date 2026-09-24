@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { applyApi, errorMessage, jobsApi, matchApi } from '../services/api'
 import { useApp } from '../store/AppContext'
+import Onboarding from '../components/Onboarding'
 import {
   Button,
   Card,
@@ -72,7 +73,10 @@ export default function Dashboard() {
   const summarise = (label, result) => {
     if (!result || typeof result !== 'object') return `${label} finished`
     if ('created' in result) return `Matching done · ${result.created} new matches from ${result.evaluated} jobs`
-    if ('applied' in result) return `Auto apply done · ${result.applied} sent, ${result.failed} failed`
+    if ('applied' in result)
+      return `Auto apply done · ${result.applied} sent automatically` +
+        (result.queued ? `, ${result.queued} waiting for your click` : '') +
+        (result.failed ? `, ${result.failed} failed` : '')
     if ('saved' in result) return `Fetch done · ${result.saved} new jobs, ${result.skipped} duplicates skipped`
     return `${label} finished`
   }
@@ -114,7 +118,9 @@ export default function Dashboard() {
         }
       />
 
-      {!user?.autoApplyEnabled && (
+      <Onboarding />
+
+      {user?.autoApplyEnabled === false && (user?.skills?.length || 0) >= 3 && (
         <Card className="mb-6 flex flex-wrap items-center justify-between gap-4 p-4">
           <div className="flex items-center gap-3">
             <div
@@ -199,8 +205,8 @@ export default function Dashboard() {
             />
           ) : (
             <div className="divide-y" style={{ borderColor: 'rgb(var(--border))' }}>
-              {recommended.map((match) => (
-                <MatchRow key={match.id} match={match} />
+              {recommended.map((view) => (
+                <MatchRow key={view.match.id} view={view} />
               ))}
             </div>
           )}
@@ -262,18 +268,29 @@ export default function Dashboard() {
   )
 }
 
-function MatchRow({ match }) {
+function MatchRow({ view }) {
+  const { match, job } = view
   return (
     <div className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]">
       <ScoreRing score={match.matchScore} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{match.jobId?.split(':').slice(1).join(':') || match.jobId}</p>
+        <p className="truncate text-sm font-medium">{job.jobTitle}</p>
         <p className="truncate text-xs" style={{ color: 'rgb(var(--text-muted))' }}>
-          {match.reasoning || 'Scored against your profile'}
+          {job.employerName}
+          {job.jobIsRemote ? ' · Remote' : job.jobCity ? ` · ${job.jobCity}` : ''}
         </p>
       </div>
-      {match.scoredBy && (
-        <span className="chip shrink-0 text-[10px]">{match.scoredBy === 'AI' ? 'AI scored' : 'Keyword'}</span>
+      {job.jobApplyLink && (
+        <a
+          href={job.jobApplyLink}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 text-xs font-medium"
+          style={{ color: 'rgb(var(--accent))' }}
+        >
+          Open
+        </a>
       )}
     </div>
   )

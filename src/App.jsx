@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import Matches from './pages/Matches'
 import Jobs from './pages/Jobs'
 import Applications from './pages/Applications'
+import AssistedApply from './pages/AssistedApply'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 
@@ -82,6 +83,7 @@ function Shell() {
           <Route path="matches" element={<Matches />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="applications" element={<Applications />} />
+          <Route path="needs-you" element={<AssistedApply />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
         </Route>
