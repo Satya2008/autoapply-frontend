@@ -23,7 +23,7 @@ export default function SemanticPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Brain />}
         title="Semantic search"
         subtitle="Jobs and profiles as vectors, so “Spring Microservices Engineer” is found for a “Java Backend Developer”. The shortlist merges keyword search and the nearest jobs by meaning (reciprocal rank fusion)."
         actions={

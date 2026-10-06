@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, FlaskConical, KeyRound, ListRestart, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Cpu, FlaskConical, KeyRound, ListRestart, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
@@ -45,7 +45,7 @@ export default function AiProvidersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Cpu />}
         title="AI providers"
         subtitle="Calls go to the primary first; if it fails, is out of circuit or answers in the wrong shape, the next one in this order is tried. A change applies on the very next AI call, on every instance."
         actions={

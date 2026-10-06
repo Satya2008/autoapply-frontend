@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -35,7 +36,7 @@ export default function AiUsagePage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="AI usage & cost" subtitle="Every AI call is recorded with its tokens, cost and latency, usable answer or not. Each user also has a daily budget." />
+      <PageHeader icon={<BarChart3 />} title="AI usage & cost" subtitle="Every AI call is recorded with its tokens, cost and latency, usable answer or not. Each user also has a daily budget." />
       <Card>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Group by">

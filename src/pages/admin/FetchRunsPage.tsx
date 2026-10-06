@@ -1,4 +1,4 @@
-import { Brush, Download, ScanText } from 'lucide-react';
+import { Brush, Database, Download, ScanText } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchRuns } from '@/api/endpoints';
@@ -45,7 +45,7 @@ export default function FetchRunsPage() {
   const running = live.data && isRunning(live.data.status);
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Database />}
         title="Fetch runs"
         subtitle="One run fetches every enabled board in parallel, each with its own deadline; a slow board never holds up the others. New jobs then go to AI parsing and every active user is rematched."
         actions={

@@ -1,8 +1,8 @@
-import { Check, ChevronRight, SkipForward } from 'lucide-react';
+import { Check, CheckCircle2, ChevronRight, HandHelping, SkipForward } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { applications } from '@/api/endpoints';
-import { ApplyLink, RiskBadge } from '@/components/domain';
+import { ApplyLink, CompanyAvatar, RiskBadge } from '@/components/domain';
 import { CopyButton } from '@/components/ui/editors';
 import { Button, Card, EmptyState, ErrorBox, PageHeader, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
@@ -23,6 +23,7 @@ export default function NeedsYouPage() {
   return (
     <div className="space-y-5">
       <PageHeader
+        icon={<HandHelping />}
         title="Needs you"
         subtitle="These can't be sent automatically. Open the site, paste your answers, then mark each one done, or skip it."
       />
@@ -30,7 +31,7 @@ export default function NeedsYouPage() {
       {queue.isLoading ? (
         <Spinner />
       ) : !queue.data?.length ? (
-        <EmptyState title="All clear">Nothing is waiting for you.</EmptyState>
+        <Card><EmptyState title="All clear" icon={<CheckCircle2 />}>Nothing is waiting for you.</EmptyState></Card>
       ) : (
         <div className="space-y-3">
           {queue.data.map((n) => {
@@ -38,15 +39,20 @@ export default function NeedsYouPage() {
             return (
               <Card key={a.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link to={`/applications/${a.id}`} className="inline-flex items-center gap-1 font-medium hover:text-brand-600">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <CompanyAvatar name={a.company} size={44} />
+                    <div className="min-w-0">
+                    <Link to={`/applications/${a.id}`} className="inline-flex items-center gap-1 font-semibold hover:text-brand-600">
                       {a.title} <ChevronRight className="h-4 w-4" />
                     </Link>
                     <div className="text-sm text-slate-500">
                       {a.company}
                       {a.location ? ` · ${a.location}` : ''} · score {a.matchScore}
                     </div>
-                    {n.reason && <div className="mt-1 text-sm text-amber-700 dark:text-amber-300">{n.reason}</div>}
+                    {n.reason && (
+                      <div className="mt-2 inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{n.reason}</div>
+                    )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <RiskBadge risk={a.riskBand} />
@@ -62,9 +68,9 @@ export default function NeedsYouPage() {
                   </div>
                 </div>
                 {n.prefill && Object.keys(n.prefill).length > 0 && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {Object.entries(n.prefill).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                      <div key={k} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-white/5 dark:bg-white/[0.03]">
                         <div className="min-w-0">
                           <div className="text-xs text-slate-500">{humanize(k)}</div>
                           <div className="truncate text-sm font-medium">{v}</div>

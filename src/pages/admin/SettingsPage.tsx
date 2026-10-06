@@ -1,4 +1,4 @@
-import { RotateCcw, Save } from 'lucide-react';
+import { RotateCcw, Save, Settings2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { settings } from '@/api/endpoints';
@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Settings" subtitle="Changed here, used on the next read by every instance (Redis tells the others). Every change is audited." />
+      <PageHeader icon={<Settings2 />} title="Settings" subtitle="Changed here, used on the next read by every instance (Redis tells the others). Every change is audited." />
       {list.error ? <ErrorBox error={list.error} /> : null}
       {list.isLoading && <Spinner />}
       {[...groups.entries()].map(([category, items]) => (

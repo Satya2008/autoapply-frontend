@@ -1,12 +1,12 @@
-import { MapPin, Search, Wifi } from 'lucide-react';
+import { Briefcase, Clock, MapPin, Search, Sparkles, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { jobs, jobSources } from '@/api/endpoints';
 import type { JobSearch } from '@/api/types';
 import { useDebounced, useStoredState } from '@/app/hooks';
-import { ApplyLink } from '@/components/domain';
+import { ApplyLink, CompanyAvatar } from '@/components/domain';
 import { Drawer } from '@/components/ui/overlays';
-import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, KeyValue, PageHeader, Select, Spinner } from '@/components/ui/primitives';
+import { Badge, Button, Card, EmptyState, ErrorBox, Input, KeyValue, PageHeader, Select, Skeleton, SkeletonList, Spinner } from '@/components/ui/primitives';
 import { dateTime, humanize, salary, timeAgo } from '@/lib/format';
 
 export default function JobsPage() {
@@ -26,87 +26,109 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Jobs" subtitle="Every active job from the boards, newest first; search finds words in title, company and description." />
+      <PageHeader icon={<Briefcase />} title="Jobs" subtitle="Every active job from the boards, newest first. Search finds words in the title, company and description." />
 
-      <Card>
-        <div className="grid gap-3 md:grid-cols-5">
-          <Field label="Search" className="md:col-span-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder="java, react, data engineer…" value={filters.q ?? ''} onChange={(e) => set({ q: e.target.value })} />
-            </div>
-          </Field>
-          <Field label="Location">
-            <Input placeholder="Pune, Berlin…" value={filters.location ?? ''} onChange={(e) => set({ location: e.target.value })} />
-          </Field>
-          <Field label="Remote">
-            <Select
-              value={filters.remote === undefined ? '' : String(filters.remote)}
-              onChange={(e) => set({ remote: e.target.value === '' ? undefined : e.target.value === 'true' })}
-            >
-              <option value="">Any</option>
-              <option value="true">Remote only</option>
-              <option value="false">On-site only</option>
-            </Select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Posted within">
-              <Select value={filters.postedWithinDays ?? ''} onChange={(e) => set({ postedWithinDays: e.target.value ? Number(e.target.value) : undefined })}>
-                <option value="">Any time</option>
-                <option value="1">1 day</option>
-                <option value="7">7 days</option>
-                <option value="30">30 days</option>
-                <option value="90">90 days</option>
-              </Select>
-            </Field>
-            <Field label="Board">
-              <Select value={filters.source ?? ''} onChange={(e) => set({ source: e.target.value || undefined })}>
-                <option value="">All</option>
-                {sources.data?.map((s) => (
-                  <option key={s.id} value={s.code}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card dark:border-white/[0.06] dark:bg-ink-900">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <input
+            aria-label="Search jobs"
+            className="h-12 w-full rounded-xl bg-slate-50 pl-12 pr-4 text-[15px] outline-none ring-1 ring-inset ring-transparent transition placeholder:text-slate-400 focus:bg-white focus:ring-brand-500 dark:bg-white/[0.03] dark:focus:bg-transparent"
+            placeholder="Search java, react, data engineer…"
+            value={filters.q ?? ''}
+            onChange={(e) => set({ q: e.target.value })}
+          />
         </div>
-      </Card>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input aria-label="Location" className="pl-9" placeholder="Any location" value={filters.location ?? ''} onChange={(e) => set({ location: e.target.value })} />
+          </div>
+          <Select
+            aria-label="Remote"
+            value={filters.remote === undefined ? '' : String(filters.remote)}
+            onChange={(e) => set({ remote: e.target.value === '' ? undefined : e.target.value === 'true' })}
+          >
+            <option value="">Remote or on-site</option>
+            <option value="true">Remote only</option>
+            <option value="false">On-site only</option>
+          </Select>
+          <Select aria-label="Posted within" value={filters.postedWithinDays ?? ''} onChange={(e) => set({ postedWithinDays: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Posted any time</option>
+            <option value="1">Last 24 hours</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </Select>
+          <Select aria-label="Board" value={filters.source ?? ''} onChange={(e) => set({ source: e.target.value || undefined })}>
+            <option value="">All boards</option>
+            {sources.data?.map((s) => (
+              <option key={s.id} value={s.code}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
 
       {list.error ? <ErrorBox error={list.error} onRetry={() => list.refetch()} /> : null}
+      {!list.isLoading && items.length > 0 && (
+        <div className="text-sm text-slate-500">
+          Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{items.length}</span>
+          {list.hasNextPage ? '+' : ''} jobs
+        </div>
+      )}
       {list.isLoading ? (
-        <Spinner />
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/5 dark:bg-ink-900">
+              <SkeletonList rows={1} />
+              <Skeleton className="mt-4 h-3 w-3/5" />
+            </div>
+          ))}
+        </div>
       ) : items.length === 0 ? (
-        <EmptyState title="No jobs found">Try fewer words, or ask an admin to fetch jobs (Admin → Fetch runs).</EmptyState>
+        <Card>
+          <EmptyState title="No jobs found" icon={<Briefcase />}>
+            Try fewer words, or ask an admin to fetch jobs (Admin console → Fetch runs).
+          </EmptyState>
+        </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {items.map((job) => (
             <button
               key={job.id}
               type="button"
               onClick={() => setSelected(job.id)}
-              className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow dark:border-slate-800 dark:bg-slate-900"
+              className="group rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-card transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift dark:border-white/[0.06] dark:bg-ink-900 dark:hover:border-brand-400/30"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{job.title}</div>
+              <div className="flex items-start gap-3">
+                <CompanyAvatar name={job.company} size={44} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-300">{job.title}</div>
                   <div className="truncate text-sm text-slate-500">{job.company}</div>
                 </div>
                 <Badge>{job.sourceCode}</Badge>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                 {job.location && (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600 dark:bg-white/5 dark:text-slate-300">
                     <MapPin className="h-3 w-3" /> {job.location}
                   </span>
                 )}
                 {job.remote && (
-                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                     <Wifi className="h-3 w-3" /> Remote
                   </span>
                 )}
-                {salary(job.salaryMin, job.salaryMax, job.currency) && <span>{salary(job.salaryMin, job.salaryMax, job.currency)}</span>}
-                <span>{timeAgo(job.postedAt)}</span>
+                {salary(job.salaryMin, job.salaryMax, job.currency) && (
+                  <span className="rounded-md bg-violet-50 px-2 py-1 font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                    {salary(job.salaryMin, job.salaryMax, job.currency)}
+                  </span>
+                )}
+                <span className="ml-auto inline-flex items-center gap-1 text-slate-400">
+                  <Clock className="h-3 w-3" /> {timeAgo(job.postedAt)}
+                </span>
               </div>
             </button>
           ))}
@@ -115,7 +137,7 @@ export default function JobsPage() {
       {list.hasNextPage && (
         <div className="flex justify-center">
           <Button variant="secondary" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
-            Load more
+            Load more jobs
           </Button>
         </div>
       )}
@@ -124,7 +146,6 @@ export default function JobsPage() {
     </div>
   );
 }
-
 export function JobDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   const job = useQuery({ queryKey: ['job', id], queryFn: () => jobs.get(id as string), enabled: !!id });
   const j = job.data;
@@ -148,8 +169,10 @@ export function JobDrawer({ id, onClose }: { id: string | null; onClose: () => v
             ]}
           />
           {r ? (
-            <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/30">
-              <div className="mb-2 text-sm font-semibold text-violet-800 dark:text-violet-200">What the job asks for (read by AI)</div>
+            <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white p-4 dark:border-violet-400/20 dark:from-violet-500/10 dark:to-transparent">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-violet-800 dark:text-violet-200">
+                <Sparkles className="h-4 w-4" /> What the job asks for (read by AI)
+              </div>
               {r.summary && <p className="mb-2 text-sm">{r.summary}</p>}
               <div className="flex flex-wrap gap-1">
                 {r.requiredSkills?.map((s) => (

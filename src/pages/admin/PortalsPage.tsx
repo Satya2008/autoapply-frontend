@@ -1,4 +1,4 @@
-import { MonitorPlay, Pencil, Plus, Trash2 } from 'lucide-react';
+import { MonitorPlay, Pencil, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
@@ -30,7 +30,7 @@ export default function PortalsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<ShieldAlert />}
         title="Apply portals"
         subtitle="How risky each careers site is, and for safe ones how the apply worker fills its form: a CSS selector per field, plus “submit” and “success” (something only shown once it went through)."
         actions={<Button icon={<Plus className="h-4 w-4" />} onClick={() => setEditing({ id: null, input: BLANK })}>Add a portal</Button>}

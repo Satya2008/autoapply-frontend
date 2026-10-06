@@ -1,3 +1,4 @@
+import { Gauge } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { ai, platform, scheduler } from '@/api/endpoints';
@@ -29,7 +30,7 @@ export default function HealthPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="System health" subtitle="Refreshes every 15 seconds. Every number here comes straight from the services." />
+      <PageHeader icon={<Gauge />} title="System health" subtitle="Refreshes every 15 seconds. Every number here comes straight from the services." />
       <Notice tone="amber">
         Admin screens are open to anyone signed in until login and roles arrive (Phase 8); keep this app local until then.
       </Notice>
@@ -81,7 +82,7 @@ export default function HealthPage() {
               ) : (
                 <>
                   <Td>{outbox[i].data?.pending ?? '…'}</Td>
-                  <Td>{outbox[i].data ? `${outbox[i].data.oldestPendingSeconds}s` : '…'}</Td>
+                  <Td>{outbox[i].data ? (outbox[i].data.oldestPendingSeconds == null ? '—' : `${outbox[i].data.oldestPendingSeconds}s`) : '…'}</Td>
                   <Td>{outbox[i].data?.failing ?? '…'}</Td>
                   <Td>{outbox[i].data?.sentLastHour ?? '…'}</Td>
                   <Td>{dlq[i].data?.filter((l) => !l.replayedAt).length ?? '…'}</Td>

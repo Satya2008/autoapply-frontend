@@ -1,4 +1,4 @@
-import { CloudUpload, Mail, Send } from 'lucide-react';
+import { CloudUpload, Mail, Send, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { notifications, storage } from '@/api/endpoints';
@@ -19,7 +19,7 @@ export default function ToolsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Storage & tools" />
+      <PageHeader icon={<Wrench />} title="Storage & tools" />
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title={<span className="inline-flex items-center gap-2"><CloudUpload className="h-4 w-4" /> Move files to object storage</span>}>
           <p className="mb-3 text-sm text-slate-500">

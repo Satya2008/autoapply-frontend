@@ -29,21 +29,21 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
     return null;
   }
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 pt-[8vh]" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-950/50 p-4 pt-[8vh] backdrop-blur-sm" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
-        className={clsx('w-full rounded-xl bg-white shadow-xl dark:bg-slate-900', wide ? 'max-w-4xl' : 'max-w-lg')}
+        className={clsx('w-full animate-fade-up rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5 dark:bg-ink-900 dark:ring-white/10', wide ? 'max-w-4xl' : 'max-w-lg')}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close">
+        <div className="flex items-center justify-between px-6 pb-2 pt-5">
+          <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>}
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-4">{children}</div>
+        {footer && <div className="flex justify-end gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-6 py-3.5 dark:border-white/5 dark:bg-white/[0.02]">{footer}</div>}
       </div>
     </div>,
     document.body,
@@ -62,21 +62,22 @@ export function Drawer({ open, onClose, title, children, actions }: {
     return null;
   }
   return createPortal(
-    <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/40" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-ink-950/40 backdrop-blur-sm" onMouseDown={onClose}>
       <aside
-        className="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl dark:bg-slate-900"
+        className="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl dark:bg-ink-900"
+        style={{ animation: 'drawer-in 0.22s ease-out' }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <div className="min-w-0 flex-1 text-base font-semibold">{title}</div>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-5 dark:border-white/5">
+          <div className="min-w-0 flex-1 text-lg font-bold tracking-tight">{title}</div>
           <div className="flex items-center gap-2">
             {actions}
-            <button type="button" onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close">
+            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
       </aside>
     </div>,
     document.body,

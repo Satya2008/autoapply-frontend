@@ -1,4 +1,4 @@
-import { Play, Settings2 } from 'lucide-react';
+import { CalendarClock, Play, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { scheduler } from '@/api/endpoints';
@@ -26,7 +26,7 @@ export default function SchedulerPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<CalendarClock />}
         title="Scheduler"
         subtitle="Jobs core-api runs on a timer; only one instance runs each trigger. Their timing and on/off switch are settings."
         actions={<Link to="/admin/settings" className="inline-flex items-center gap-1 text-sm text-brand-600 hover:underline"><Settings2 className="h-4 w-4" /> Change times</Link>}

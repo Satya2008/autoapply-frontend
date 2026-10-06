@@ -16,7 +16,7 @@ export default function EvalsPage() {
   const [tab, setTab] = useState<'runs' | 'cases'>('runs');
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<FlaskConical />}
         title="Evals"
         subtitle="AI quality measured, not guessed: a golden set of hand-scored (candidate, job) pairs, run against the matcher or a prompt version. A new job-fit version can only go live after its eval passes."
       />

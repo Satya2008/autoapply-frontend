@@ -1,4 +1,4 @@
-import { Eraser } from 'lucide-react';
+import { Boxes, Eraser } from 'lucide-react';
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { platform } from '@/api/endpoints';
 import type { ServiceName } from '@/api/types';
@@ -27,7 +27,7 @@ export default function CachesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Caches" subtitle="Memory first (seconds), then Redis (minutes), then the database. Hit ratio counts both levels." />
+      <PageHeader icon={<Boxes />} title="Caches" subtitle="Memory first (seconds), then Redis (minutes), then the database. Hit ratio counts both levels." />
       {SERVICES.map((service, i) => {
         const q = caches[i];
         return (

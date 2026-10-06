@@ -1,4 +1,4 @@
-import { Plus, TrendingUp } from 'lucide-react';
+import { Plus, Sparkles, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
 import { matches, me } from '@/api/endpoints';
@@ -28,7 +28,7 @@ export default function SkillGapPage() {
   const g = gap.data;
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Sparkles />}
         title="Skill gap"
         subtitle="The skills the jobs on your shortlist ask for that your profile doesn't have, ranked by how many extra jobs would become matches if you had them."
       />

@@ -1,4 +1,4 @@
-import { CheckCircle2, FlaskConical, Plus } from 'lucide-react';
+import { CheckCircle2, FlaskConical, MessageSquareCode, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,7 +50,7 @@ export default function PromptsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<MessageSquareCode />}
         title="Prompts"
         subtitle="What the AI is asked, versioned. Postings and resumes go inside tags marked as untrusted data, and every answer must match the version's JSON Schema."
         actions={<Button icon={<Plus className="h-4 w-4" />} onClick={() => setAdding({ code: '' })}>New prompt</Button>}

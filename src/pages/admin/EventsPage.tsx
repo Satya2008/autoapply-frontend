@@ -1,4 +1,4 @@
-import { RotateCw } from 'lucide-react';
+import { ListChecks, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { platform } from '@/api/endpoints';
@@ -29,7 +29,7 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<ListChecks />}
         title="Events & dead letters"
         subtitle="Events are written in the same transaction as the change (outbox) and relayed to Kafka. One that fails twice is kept here with its error; fix the cause, then replay it."
       />

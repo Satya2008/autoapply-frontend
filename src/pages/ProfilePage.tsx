@@ -1,4 +1,4 @@
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, Trash2, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const skills = useQuery({ queryKey: ['skills'], queryFn: me.skills });
   return (
     <div className="space-y-6">
-      <PageHeader title="Profile & skills" subtitle="Matching, applying and the AI writing all work from what you put here." />
+      <PageHeader icon={<User />} title="Profile & skills" subtitle="Matching, applying and the AI writing all work from what you put here." />
       {profile.error ? <ErrorBox error={profile.error} onRetry={() => profile.refetch()} /> : null}
       {profile.isLoading ? <Spinner /> : profile.data && <ProfileForm profile={profile.data} />}
       {skills.error ? <ErrorBox error={skills.error} /> : null}

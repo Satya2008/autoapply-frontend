@@ -7,6 +7,7 @@ import { App } from './App';
 import { LiveProvider } from './app/live';
 import { SessionProvider } from './app/session';
 import { ToastProvider } from './components/ui/toast';
+import '@fontsource-variable/plus-jakarta-sans';
 import './index.css';
 
 const queryClient = new QueryClient({

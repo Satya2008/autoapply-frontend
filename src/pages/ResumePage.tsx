@@ -82,7 +82,7 @@ export default function ResumePage() {
   const ai = r?.aiParsed;
   return (
     <div className="space-y-5">
-      <PageHeader title="Resume" subtitle="PDF or Word (.docx), up to 10 MB. Skills are read from it and added to your profile; AI then adds years per skill." />
+      <PageHeader icon={<FileText />} title="Resume" subtitle="PDF or Word (.docx), up to 10 MB. Skills are read from it and added to your profile; AI then adds years per skill." />
 
       <div
         onDragOver={(e) => {

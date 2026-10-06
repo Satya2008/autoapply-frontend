@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import { Bell, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { me } from '@/api/endpoints';
@@ -48,7 +48,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Notifications" subtitle="How NaukriRadar tells you what happened: a daily digest with real numbers, and a message after each apply run." />
+      <PageHeader icon={<Bell />} title="Notifications" subtitle="How NaukriRadar tells you what happened: a daily digest with real numbers, and a message after each apply run." />
       {prefs.error ? <ErrorBox error={prefs.error} /> : null}
       {prefs.isLoading || !form ? (
         <Spinner />

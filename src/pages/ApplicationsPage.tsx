@@ -1,10 +1,11 @@
+import { ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { applications } from '@/api/endpoints';
 import type { ApplicationStatus } from '@/api/types';
 import { APPLICATION_STATUSES } from '@/api/types';
 import { useStoredState } from '@/app/hooks';
-import { RiskBadge, StatusBadge } from '@/components/domain';
+import { CompanyAvatar, RiskBadge, ScoreRing, StatusBadge } from '@/components/domain';
 import { ApplyRunPanel } from '@/components/runs';
 import { Button, Card, EmptyState, ErrorBox, PageHeader, Spinner, Table, Td } from '@/components/ui/primitives';
 import { humanize, timeAgo } from '@/lib/format';
@@ -27,6 +28,7 @@ export default function ApplicationsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
+        icon={<ClipboardList />}
         title="Applications"
         subtitle="Everything applied to or waiting, with its history. Applications to sites that ban automation are never sent automatically: they wait for you."
       />
@@ -45,20 +47,23 @@ export default function ApplicationsPage() {
       {list.isLoading ? (
         <Spinner />
       ) : items.length === 0 ? (
-        <EmptyState title="No applications here">Run applying from your matches to create some.</EmptyState>
+        <Card><EmptyState title="No applications here" icon={<ClipboardList />}>Run applying from your matches to create some.</EmptyState></Card>
       ) : (
         <Card padded={false}>
           <Table head={['Job', 'Status', 'Risk', 'Score', 'Sent via', 'Updated']}>
             {items.map((a) => (
               <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                 <Td>
-                  <Link to={`/applications/${a.id}`} className="font-medium text-slate-900 hover:text-brand-600 dark:text-white">
-                    {a.title}
+                  <Link to={`/applications/${a.id}`} className="group flex items-center gap-3" title={a.title}>
+                    <CompanyAvatar name={a.company} size={36} />
+                    <div className="min-w-0 max-w-[16rem] lg:max-w-[24rem]">
+                      <div className="truncate font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-300">{a.title}</div>
+                      <div className="truncate text-xs text-slate-500">
+                        {a.company}
+                        {a.location ? ` · ${a.location}` : ''}
+                      </div>
+                    </div>
                   </Link>
-                  <div className="text-xs text-slate-500">
-                    {a.company}
-                    {a.location ? ` · ${a.location}` : ''}
-                  </div>
                 </Td>
                 <Td>
                   <StatusBadge status={a.status} />
@@ -66,7 +71,7 @@ export default function ApplicationsPage() {
                 <Td>
                   <RiskBadge risk={a.riskBand} />
                 </Td>
-                <Td className="tabular-nums">{a.matchScore}</Td>
+                <Td><ScoreRing score={a.matchScore} size={34} /></Td>
                 <Td>{a.submittedVia ? humanize(a.submittedVia) : '—'}</Td>
                 <Td className="whitespace-nowrap text-xs text-slate-500">{timeAgo(a.updatedAt)}</Td>
               </tr>
@@ -92,8 +97,8 @@ function FilterChip({ active, onClick, label, count }: { active: boolean; onClic
       onClick={onClick}
       className={
         active
-          ? 'rounded-full bg-brand-600 px-3 py-1 text-sm font-medium text-white'
-          : 'rounded-full bg-white px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'
+          ? 'rounded-lg bg-ink-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm dark:bg-white dark:text-ink-900'
+          : 'rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10'
       }
     >
       {label}

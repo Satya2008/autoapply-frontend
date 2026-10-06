@@ -1,4 +1,4 @@
-import { Download, FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Download, FlaskConical, Globe, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
@@ -53,7 +53,7 @@ export default function JobSourcesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Globe />}
         title="Job sources"
         subtitle="Each job board is configuration, not code: where to call, where the list of jobs is in the answer, and a JSONPath for each field. A new JSON board is one form."
         actions={

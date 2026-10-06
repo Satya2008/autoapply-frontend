@@ -1,3 +1,4 @@
+import { ScrollText } from 'lucide-react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { audit } from '@/api/endpoints';
 import { useDebounced, useStoredState } from '@/app/hooks';
@@ -24,7 +25,7 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Audit log" subtitle="Every admin change: settings, portals, storage moves, scheduler runs." />
+      <PageHeader icon={<ScrollText />} title="Audit log" subtitle="Every admin change: settings, portals, storage moves, scheduler runs." />
       <Card>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Actor (user id)"><Input value={filters.actor} onChange={(e) => setFilters({ ...filters, actor: e.target.value })} /></Field>

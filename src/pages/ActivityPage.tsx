@@ -1,4 +1,4 @@
-import { Radio } from 'lucide-react';
+import { Activity, Radio } from 'lucide-react';
 import { describeAttempt, describeRun, useLive } from '@/app/live';
 import { Badge, Card, EmptyState, PageHeader } from '@/components/ui/primitives';
 import { JsonView } from '@/components/ui/editors';
@@ -8,7 +8,7 @@ export default function ActivityPage() {
   const { connected, events } = useLive();
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader icon={<Activity />}
         title="Live activity"
         subtitle="Results arrive here the moment they happen: apply runs finishing, and each application the apply worker sends. It flows fetch → match → apply → this screen, through Kafka, without refreshing."
         actions={<Badge tone={connected ? 'green' : 'slate'}>{connected ? 'Connected' : 'Reconnecting…'}</Badge>}
