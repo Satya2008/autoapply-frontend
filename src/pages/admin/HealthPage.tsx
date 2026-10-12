@@ -32,7 +32,8 @@ export default function HealthPage() {
     <div className="space-y-6">
       <PageHeader icon={<Gauge />} title="System health" subtitle="Refreshes every 15 seconds. Every number here comes straight from the services." />
       <Notice tone="amber">
-        Admin screens are open to anyone signed in until login and roles arrive (Phase 8); keep this app local until then.
+        The admin console is restricted to ADMIN accounts at the gateway. The services themselves trust the gateway, so keep
+        their ports (8081–8085) on a private network — never expose a service port directly.
       </Notice>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Services answering" value={`${SERVICES_WITH_EVENTS.length + 1 - Math.min(down, SERVICES_WITH_EVENTS.length)}/${SERVICES_WITH_EVENTS.length + 1}`}
