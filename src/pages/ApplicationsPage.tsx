@@ -1,4 +1,4 @@
-import { ArrowRight, ClipboardList, HandHelping, Send, Target, TrendingUp } from 'lucide-react';
+import { ClipboardList, Send, Target, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -13,23 +13,27 @@ import { timeAgo } from '@/lib/format';
 
 type Filter = ApplicationStatus | 'ALL';
 
+// Only jobs actually applied to live here; the ones still being prepared stay under Matches.
+const APPLIED_STATUSES: ApplicationStatus[] = ['SUBMITTED', 'APPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
+
 export default function ApplicationsPage() {
   const [filter, setFilter] = useStoredState<Filter>('applications.filter', 'ALL');
   const stats = useQuery({ queryKey: ['applications', 'stats'], queryFn: applications.stats });
   const list = useInfiniteQuery({
     queryKey: ['applications', 'list', filter],
-    queryFn: ({ pageParam }) => applications.list(filter === 'ALL' ? undefined : filter, pageParam, 25),
+    // 'ALL' means every applied status; a specific chip narrows to that one.
+    queryFn: ({ pageParam }) => applications.list(filter === 'ALL' ? undefined : filter, pageParam, 25, filter === 'ALL'),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = stats.data?.byStatus ?? {};
-  const statuses = APPLICATION_STATUSES.filter((s) => (counts[s] ?? 0) > 0 || s === filter);
-  const waiting = counts.NEEDS_YOU ?? 0;
+  const appliedTotal = APPLIED_STATUSES.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
+  const statuses = APPLICATION_STATUSES.filter((s) => APPLIED_STATUSES.includes(s) && ((counts[s] ?? 0) > 0 || s === filter));
 
   return (
     <div className="space-y-5">
-      <PageHeader icon={<ClipboardList />} title="Applications" subtitle="Every job you applied to, or are about to, and where each one stands." />
+      <PageHeader icon={<ClipboardList />} title="Applications" subtitle="Jobs you've applied to, and where each one stands. Jobs still being prepared stay under Matches until you apply." />
 
       <Card>
         <div className="grid gap-4 md:grid-cols-3">
@@ -38,13 +42,13 @@ export default function ApplicationsPage() {
           </Step>
           <Step n={2} icon={<Send />} title="Filled for you, you press Submit">
             In{' '}
-            <Link to="/needs-you" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">
-              Needs you
+            <Link to="/matches" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">
+              Matches
             </Link>{' '}
             press “Fill for me”: we fill the form in Chrome and you only check it and press Submit. On LinkedIn and Naukri you apply yourself, with your answers ready to copy.
           </Step>
-          <Step n={3} icon={<TrendingUp />} title="Track it">
-            Mark what you applied to, then move it on: Applied → Interview → Offer. Open any row for the cover letter and its history.
+          <Step n={3} icon={<TrendingUp />} title="Tracked here once applied">
+            When you apply, the job moves out of Matches and lands here. Move it on: Applied → Interview → Offer. Open any row for the cover letter and its history.
           </Step>
         </div>
         <div className="mt-5 border-t border-slate-100 pt-4 dark:border-white/5">
@@ -52,22 +56,9 @@ export default function ApplicationsPage() {
         </div>
       </Card>
 
-      {waiting > 0 && (
-        <Link
-          to="/needs-you"
-          className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20"
-        >
-          <HandHelping className="h-5 w-5 shrink-0" />
-          <span className="flex-1">
-            <b>{waiting}</b> {waiting === 1 ? 'application is' : 'applications are'} waiting for you to apply on the company’s site.
-          </span>
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      )}
-
-      {(stats.data?.total ?? 0) > 0 && (
+      {appliedTotal > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          <FilterChip active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="All" count={stats.data?.total} />
+          <FilterChip active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="All" count={appliedTotal} />
           {statuses.map((s) => (
             <FilterChip key={s} active={filter === s} onClick={() => setFilter(s)} label={STATUS_TEXT[s].label} title={STATUS_TEXT[s].hint} count={counts[s] ?? 0} />
           ))}
@@ -79,8 +70,8 @@ export default function ApplicationsPage() {
         <Spinner />
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState title={filter === 'ALL' ? 'No applications yet' : `Nothing is “${STATUS_TEXT[filter].label}”`} icon={<ClipboardList />}>
-            {filter === 'ALL' ? 'Press “Apply to my matches” above: your best matches become applications here.' : STATUS_TEXT[filter].hint}
+          <EmptyState title={filter === 'ALL' ? 'Nothing applied yet' : `Nothing is “${STATUS_TEXT[filter].label}”`} icon={<ClipboardList />}>
+            {filter === 'ALL' ? 'Apply from your Matches — auto-apply on safe sites, or “Fill for me” elsewhere. Applied jobs show up here.' : STATUS_TEXT[filter].hint}
           </EmptyState>
         </Card>
       ) : (

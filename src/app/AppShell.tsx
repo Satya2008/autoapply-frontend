@@ -106,8 +106,10 @@ export function AppShell() {
       to: '/matches',
       label: 'Matches',
       icon: <Target className={ICON} />,
+      badge: waiting,
       tabs: [
         { to: '/matches', label: 'My matches' },
+        { to: '/needs-you', label: 'Needs you', badge: waiting },
         { to: '/skill-gap', label: 'Skill gap' },
       ],
     },
@@ -115,10 +117,8 @@ export function AppShell() {
       to: '/applications',
       label: 'Applications',
       icon: <ClipboardList className={ICON} />,
-      badge: waiting,
       tabs: [
         { to: '/applications', label: 'All' },
-        { to: '/needs-you', label: 'Needs you', badge: waiting },
       ],
       also: ['/activity'],
     },

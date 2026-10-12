@@ -99,8 +99,10 @@ export const matches = {
 };
 
 export const applications = {
-  list: (status?: ApplicationStatus, cursor?: string | null, limit = 20) =>
-    api.get<Page<ApplicationSummary>>('/api/v1/me/applications', { status, cursor, limit }),
+  list: (status?: ApplicationStatus, cursor?: string | null, limit = 20, applied?: boolean) =>
+    api.get<Page<ApplicationSummary>>('/api/v1/me/applications', { status, applied, cursor, limit }),
+  /** Job ids already applied to, so Matches can hide them. */
+  appliedJobIds: () => api.get<string[]>('/api/v1/me/applications/applied-job-ids'),
   get: (id: string) => api.get<ApplicationDetail>(`/api/v1/me/applications/${id}`),
   needsYou: () => api.get<NeedsYou[]>('/api/v1/me/applications/needs-you'),
   stats: () => api.get<ApplicationStats>('/api/v1/me/applications/stats'),

@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import { Clock, MapPin, Target, Wifi } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { matches } from '@/api/endpoints';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { applications, matches } from '@/api/endpoints';
 import { useDebounced, useStoredState } from '@/app/hooks';
 import { AiScoreBadge, CompanyAvatar, ScoreRing } from '@/components/domain';
 import { MatchRunPanel } from '@/components/runs';
@@ -27,7 +27,10 @@ export default function MatchesPage() {
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  // Jobs already applied to move to Applications, so they drop out of this "to apply" list.
+  const applied = useQuery({ queryKey: ['applications', 'appliedJobIds'], queryFn: applications.appliedJobIds });
+  const appliedSet = new Set(applied.data ?? []);
+  const items = (list.data?.pages.flatMap((p) => p.items) ?? []).filter((m) => !appliedSet.has(m.jobId));
 
   return (
     <div className="space-y-5">
