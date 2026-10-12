@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { matches } from '@/api/endpoints';
-import { ApplyLink, CompanyAvatar, ScoreRing } from '@/components/domain';
+import { CompanyAvatar, ScoreRing } from '@/components/domain';
+import { MatchApplyButton, MatchFillButton, bannedSite } from '@/components/fillReview';
 import { Badge, Button, Card, ErrorBox, ProgressBar, SkeletonList } from '@/components/ui/primitives';
 import { dateTime, humanize } from '@/lib/format';
 import { JobDrawer } from './JobsPage';
@@ -60,7 +61,8 @@ export default function MatchDetailPage() {
                   <Button variant="secondary" icon={<FileText className="h-4 w-4" />} onClick={() => setShowJob(true)}>
                     Read the job
                   </Button>
-                  <ApplyLink url={d.match.applyUrl} />
+                  {d.match.applyUrl && <MatchApplyButton jobId={d.match.jobId} title={d.match.title} company={d.match.company} size="md" />}
+                  {!bannedSite(d.match.applyUrl) && <MatchFillButton jobId={d.match.jobId} />}
                 </div>
               </div>
               <div className="flex items-center gap-5 rounded-2xl bg-slate-50 p-4 dark:bg-white/[0.03]">

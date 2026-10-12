@@ -6,6 +6,7 @@ import { matches } from '@/api/endpoints';
 import { useDebounced, useStoredState } from '@/app/hooks';
 import { AiScoreBadge, CompanyAvatar, ScoreRing } from '@/components/domain';
 import { MatchRunPanel } from '@/components/runs';
+import { MatchApplyButton, MatchFillButton, bannedSite } from '@/components/fillReview';
 import { Button, Card, EmptyState, ErrorBox, PageHeader, SkeletonList } from '@/components/ui/primitives';
 import { timeAgo } from '@/lib/format';
 
@@ -33,7 +34,7 @@ export default function MatchesPage() {
       <PageHeader
         icon={<Target />}
         title="Matches"
-        subtitle="Jobs scored against your profile: skills, title, location, salary, experience, recency and closeness in meaning. The best few are also reviewed by AI when it is set up."
+        subtitle="Jobs scored against your profile: skills, title, location, experience, recency and closeness in meaning. The best few are also reviewed by AI when it is set up."
       />
       <Card>
         <MatchRunPanel />
@@ -114,6 +115,14 @@ export default function MatchesPage() {
                   </span>
                 </div>
               </div>
+              <span className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                {m.applyUrl && <MatchApplyButton jobId={m.jobId} title={m.title} company={m.company} />}
+                {!bannedSite(m.applyUrl) && (
+                  <span className="hidden sm:inline-flex">
+                    <MatchFillButton jobId={m.jobId} />
+                  </span>
+                )}
+              </span>
               <AiScoreBadge score={m.aiScore} />
               <ScoreRing score={m.score} size={56} />
             </Link>

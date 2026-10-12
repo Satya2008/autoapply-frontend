@@ -1,18 +1,32 @@
 import { Check, Copy, Plus, Trash2, X } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
-import { useState } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { splitList } from '@/lib/format';
 import { Button, Input } from './primitives';
+import type { SuggestFn } from './suggestions';
+import { SuggestionList, useSuggestions } from './suggestions';
 
-/** A list of short strings edited as removable chips; Enter or comma adds, pasting a list adds all. */
-export function ChipsInput({ value, onChange, placeholder, max = 100, maxLength = 100 }: {
+/**
+ * A list of short strings edited as removable chips; Enter or comma adds, pasting a list adds
+ * all. With {@code suggest}, what is being typed is completed from a list as you type.
+ */
+export function ChipsInput({ value, onChange, placeholder, max = 100, maxLength = 100, suggest, suggestKey, className, icon, ariaLabel, addOnBlur = true }: {
   value: string[];
   onChange: (value: string[]) => void;
   placeholder?: string;
   max?: number;
   maxLength?: number;
+  suggest?: SuggestFn;
+  suggestKey?: string;
+  /** Replaces the box style, e.g. for a large search bar. */
+  className?: string;
+  icon?: ReactNode;
+  ariaLabel?: string;
+  /** Turn what was typed into a chip when the box loses focus (off for search, where half a word is noise). */
+  addOnBlur?: boolean;
 }) {
   const [draft, setDraft] = useState('');
+  const listId = useId();
 
   const add = (text: string) => {
     const known = new Set(value.map((v) => v.toLowerCase()));
@@ -23,7 +37,18 @@ export function ChipsInput({ value, onChange, placeholder, max = 100, maxLength 
     setDraft('');
   };
 
+  const s = useSuggestions({
+    fetch: suggest,
+    queryKey: suggestKey ?? 'chips',
+    text: draft,
+    exclude: value,
+    onPick: (picked) => add(picked.label),
+  });
+
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (s.onKeyDown(e)) {
+      return;
+    }
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       add(draft);
@@ -33,31 +58,50 @@ export function ChipsInput({ value, onChange, placeholder, max = 100, maxLength 
   };
 
   return (
-    <div className="flex min-h-[2.5rem] flex-wrap items-center gap-1.5 rounded-lg bg-white px-2 py-1.5 ring-1 ring-inset ring-slate-300 focus-within:ring-2 focus-within:ring-brand-500 dark:bg-slate-900 dark:ring-slate-700">
-      {value.map((item) => (
-        <span key={item} className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
-          {item}
-          <button type="button" aria-label={`Remove ${item}`} onClick={() => onChange(value.filter((v) => v !== item))} className="hover:text-rose-600">
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ))}
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKey}
-        onBlur={() => draft && add(draft)}
-        onPaste={(e) => {
-          const text = e.clipboardData.getData('text');
-          if (/[,\n]/.test(text)) {
-            e.preventDefault();
-            add(text);
-          }
-        }}
-        placeholder={value.length >= max ? `Limit of ${max} reached` : placeholder}
-        disabled={value.length >= max}
-        className="min-w-[8rem] flex-1 border-0 bg-transparent p-1 text-sm focus:outline-none focus:ring-0"
-      />
+    <div className="relative">
+      <div className={className ?? "flex min-h-[2.5rem] flex-wrap items-center gap-1.5 rounded-lg bg-white px-2 py-1.5 ring-1 ring-inset ring-slate-300 focus-within:ring-2 focus-within:ring-brand-500 dark:bg-slate-900 dark:ring-slate-700"}>
+        {icon && <span className="shrink-0 text-slate-400">{icon}</span>}
+        {value.map((item) => (
+          <span key={item} className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
+            {item}
+            <button type="button" aria-label={`Remove ${item}`} onClick={() => onChange(value.filter((v) => v !== item))} className="hover:text-rose-600">
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          aria-label={ariaLabel}
+          role={suggest ? 'combobox' : undefined}
+          aria-expanded={suggest ? s.shown : undefined}
+          aria-controls={suggest ? listId : undefined}
+          autoComplete="off"
+          onChange={(e) => {
+            setDraft(e.target.value);
+            s.open();
+            s.setActive(-1);
+          }}
+          onFocus={s.open}
+          onKeyDown={onKey}
+          onBlur={() => {
+            s.close();
+            if (draft && addOnBlur) {
+              add(draft);
+            }
+          }}
+          onPaste={(e) => {
+            const text = e.clipboardData.getData('text');
+            if (/[,\n]/.test(text)) {
+              e.preventDefault();
+              add(text);
+            }
+          }}
+          placeholder={value.length >= max ? `Limit of ${max} reached` : placeholder}
+          disabled={value.length >= max}
+          className="min-w-[8rem] flex-1 border-0 bg-transparent p-1 text-sm focus:outline-none focus:ring-0"
+        />
+      </div>
+    {suggest && <SuggestionList id={listId} items={s.items} active={s.active} typed={draft} shown={s.shown} onPick={s.pick} onHover={s.setActive} />}
     </div>
   );
 }
@@ -92,16 +136,16 @@ export function KeyValueEditor({ value, onChange, keyPlaceholder = 'key', valueP
     <div className="space-y-2">
       {rows.map(([k, v]) => (
         <div key={k} className="flex gap-2">
-          <Input value={k} onChange={(e) => setRow(k, e.target.value, v)} className="w-1/3 font-mono text-xs" />
-          <Input value={v} onChange={(e) => setRow(k, k, e.target.value)} className="flex-1 font-mono text-xs" />
+          <Input value={k} onChange={(e) => setRow(k, e.target.value, v)} className="!w-1/3 shrink-0 font-mono text-xs" />
+          <Input value={v} onChange={(e) => setRow(k, k, e.target.value)} className="min-w-0 flex-1 font-mono text-xs" />
           <Button variant="ghost" size="sm" aria-label="Remove" onClick={() => onChange(Object.fromEntries(rows.filter(([key]) => key !== k)))}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ))}
       <div className="flex gap-2">
-        <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder={keyPlaceholder} className="w-1/3 font-mono text-xs" list={suggestions ? 'kv-suggestions' : undefined} />
-        <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder={valuePlaceholder} className="flex-1 font-mono text-xs"
+        <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder={keyPlaceholder} className="!w-1/3 shrink-0 font-mono text-xs" list={suggestions ? 'kv-suggestions' : undefined} />
+        <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder={valuePlaceholder} className="min-w-0 flex-1 font-mono text-xs"
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} />
         <Button variant="secondary" size="sm" onClick={add} icon={<Plus className="h-4 w-4" />}>
           Add

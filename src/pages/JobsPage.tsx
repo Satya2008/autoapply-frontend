@@ -1,19 +1,21 @@
 import { Briefcase, Clock, MapPin, Search, Sparkles, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { jobs, jobSources } from '@/api/endpoints';
+import { jobs } from '@/api/endpoints';
 import type { JobSearch } from '@/api/types';
 import { useDebounced, useStoredState } from '@/app/hooks';
 import { ApplyLink, CompanyAvatar } from '@/components/domain';
+import { Autocomplete } from '@/components/ui/Autocomplete';
+import { ChipsInput } from '@/components/ui/editors';
 import { Drawer } from '@/components/ui/overlays';
-import { Badge, Button, Card, EmptyState, ErrorBox, Input, KeyValue, PageHeader, Select, Skeleton, SkeletonList, Spinner } from '@/components/ui/primitives';
-import { dateTime, humanize, salary, timeAgo } from '@/lib/format';
+import { Badge, Button, Card, CONTROL, EmptyState, ErrorBox, KeyValue, PageHeader, Select, Skeleton, SkeletonList, Spinner } from '@/components/ui/primitives';
+import { dateTime, salary, timeAgo } from '@/lib/format';
+import { REGIONS } from './admin/sourceTemplates';
 
 export default function JobsPage() {
   const [filters, setFilters] = useStoredState<JobSearch>('jobs.filters', { postedWithinDays: 30 });
   const [selected, setSelected] = useState<string | null>(null);
   const settled = useDebounced(filters);
-  const sources = useQuery({ queryKey: ['job-sources'], queryFn: jobSources.list, staleTime: 300_000 });
 
   const list = useInfiniteQuery({
     queryKey: ['jobs', settled],
@@ -23,27 +25,55 @@ export default function JobsPage() {
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const set = (patch: Partial<JobSearch>) => setFilters({ ...filters, ...patch });
+  // the search box holds keywords as chips; the API reads them comma-separated
+  const keywords = (filters.q ?? '').split(',').map((k) => k.trim()).filter(Boolean);
+  const POSTED: Record<number, string> = { 1: 'the last 24 hours', 7: 'the last 7 days', 30: 'the last 30 days', 90: 'the last 90 days' };
+  // what narrows the list, so an empty result can say what to loosen
+  const narrowing = [
+    filters.postedWithinDays ? `posted in ${POSTED[filters.postedWithinDays] ?? `${filters.postedWithinDays} days`}` : null,
+    filters.location ? `in ${filters.location}` : null,
+    filters.region ? (REGIONS.find((r) => r.code === filters.region)?.label ?? filters.region) : null,
+    filters.remote === true ? 'remote only' : filters.remote === false ? 'on-site only' : null,
+    keywords.length ? `matching ${keywords.join(' or ')}` : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="space-y-5">
       <PageHeader icon={<Briefcase />} title="Jobs" subtitle="Every active job from the boards, newest first. Search finds words in the title, company and description." />
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card dark:border-white/[0.06] dark:bg-ink-900">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input
-            aria-label="Search jobs"
-            className="h-12 w-full rounded-xl bg-slate-50 pl-12 pr-4 text-[15px] outline-none ring-1 ring-inset ring-transparent transition placeholder:text-slate-400 focus:bg-white focus:ring-brand-500 dark:bg-white/[0.03] dark:focus:bg-transparent"
-            placeholder="Search java, react, data engineer…"
-            value={filters.q ?? ''}
-            onChange={(e) => set({ q: e.target.value })}
-          />
-        </div>
+      <div className="relative z-20 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card dark:border-white/[0.06] dark:bg-ink-900">
+        <ChipsInput
+          ariaLabel="Search jobs"
+          suggest={jobs.suggestKeywords}
+          suggestKey="keywords"
+          addOnBlur={false}
+          max={10}
+          icon={<Search className="ml-1.5 h-5 w-5" />}
+          className="flex min-h-[3rem] flex-wrap items-center gap-1.5 rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-inset ring-transparent transition focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-500 dark:bg-white/[0.03]"
+          placeholder={keywords.length ? 'Add another keyword…' : 'Type a keyword and press Enter: java, spring boot…'}
+          value={keywords}
+          onChange={(v) => set({ q: v.length ? v.join(', ') : undefined })}
+        />
+        {keywords.length > 1 && <p className="mt-1.5 px-1 text-xs text-slate-500">Showing jobs that match any of these keywords.</p>}
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative">
-            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input aria-label="Location" className="pl-9" placeholder="Any location" value={filters.location ?? ''} onChange={(e) => set({ location: e.target.value })} />
-          </div>
+          <Select aria-label="Region" value={filters.region ?? ''} onChange={(e) => set({ region: e.target.value || undefined, source: undefined })}>
+            <option value="">All regions</option>
+            {REGIONS.map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+          <Autocomplete
+            ariaLabel="Location"
+            queryKey="locations"
+            fetch={jobs.suggestLocations}
+            icon={<MapPin className="h-4 w-4" />}
+            inputClassName={`${CONTROL} pl-9`}
+            placeholder="City, state, India, Remote…"
+            value={filters.location ?? ''}
+            onChange={(location) => set({ location })}
+          />
           <Select
             aria-label="Remote"
             value={filters.remote === undefined ? '' : String(filters.remote)}
@@ -59,14 +89,6 @@ export default function JobsPage() {
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>
             <option value="90">Last 90 days</option>
-          </Select>
-          <Select aria-label="Board" value={filters.source ?? ''} onChange={(e) => set({ source: e.target.value || undefined })}>
-            <option value="">All boards</option>
-            {sources.data?.map((s) => (
-              <option key={s.id} value={s.code}>
-                {s.name}
-              </option>
-            ))}
           </Select>
         </div>
       </div>
@@ -89,8 +111,31 @@ export default function JobsPage() {
         </div>
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState title="No jobs found" icon={<Briefcase />}>
-            Try fewer words, or ask an admin to fetch jobs (Admin console → Fetch runs).
+          <EmptyState
+            title="No jobs found"
+            icon={<Briefcase />}
+            action={
+              narrowing.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {filters.postedWithinDays && filters.postedWithinDays < 90 && (
+                    <Button variant="secondary" size="sm" onClick={() => set({ postedWithinDays: undefined })}>
+                      Any time
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => setFilters({})}>
+                    Clear all filters
+                  </Button>
+                </div>
+              )
+            }
+          >
+            {narrowing.length ? (
+              <>
+                No job is <b>{narrowing.join(', ')}</b>. Loosen one of these.
+              </>
+            ) : (
+              'No jobs yet. New jobs arrive every few hours; check back soon.'
+            )}
           </EmptyState>
         </Card>
       ) : (
@@ -108,7 +153,6 @@ export default function JobsPage() {
                   <div className="truncate font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-300">{job.title}</div>
                   <div className="truncate text-sm text-slate-500">{job.company}</div>
                 </div>
-                <Badge>{job.sourceCode}</Badge>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                 {job.location && (
@@ -163,9 +207,6 @@ export function JobDrawer({ id, onClose }: { id: string | null; onClose: () => v
               ['Remote', j.remote ? 'Yes' : 'No'],
               ['Salary', salary(j.salaryMin, j.salaryMax, j.currency)],
               ['Posted', dateTime(j.postedAt)],
-              ['Board', j.sourceCode],
-              ['Status', humanize(j.status)],
-              ['Last seen on the board', timeAgo(j.lastSeenAt)],
             ]}
           />
           {r ? (
@@ -192,9 +233,7 @@ export function JobDrawer({ id, onClose }: { id: string | null; onClose: () => v
                 {r.workMode && <span>Work mode: {r.workMode}</span>}
               </div>
             </div>
-          ) : (
-            <p className="text-xs text-slate-500">Not read by AI yet: requirements appear once the job is parsed.</p>
-          )}
+          ) : null}
           <div>
             <div className="mb-2 text-sm font-semibold">Description</div>
             <div className="prose-letter text-sm text-slate-700 dark:text-slate-300">{j.description || 'No description.'}</div>

@@ -32,6 +32,41 @@ export interface Profile {
   dailyApplyLimit: number;
   autoApplyEnabled: boolean;
   updatedAt: string | null;
+  /** What application forms ask; only used to fill them. */
+  details: ApplicationDetails | null;
+  /** Hard rules: a job breaking one is never matched. */
+  filters: JobFilters | null;
+}
+
+export type JobRegion = 'INDIA' | 'ANYWHERE';
+export type JobLevel = 'JUNIOR_MID' | 'UP_TO_SENIOR' | 'ANY';
+
+export interface JobFilters {
+  /** the job must be about at least one of these */
+  mustHave: string[];
+  region: JobRegion;
+  level: JobLevel;
+}
+
+export interface ApplicationDetails {
+  currentCompany: string | null;
+  /** yearly, INR */
+  currentCtc: number | null;
+  /** yearly, INR */
+  expectedCtc: number | null;
+  highestDegree: string | null;
+  fieldOfStudy: string | null;
+  college: string | null;
+  educationStartYear: number | null;
+  graduationYear: number | null;
+  willingToRelocate: boolean | null;
+  /** the questions most forms add; filled into every form */
+  gender: string | null;
+  heardAbout: string | null;
+  authorizedToWork: boolean | null;
+  needsSponsorship: boolean | null;
+  disability: string | null;
+  veteranStatus: string | null;
 }
 
 export type ProfileUpdate = Omit<Profile, 'userId' | 'updatedAt'>;
@@ -125,11 +160,20 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/** Something to offer while the user types: a place, a skill or a job title. */
+export interface Suggestion {
+  label: string;
+  kind: "place" | "skill" | "title";
+  /** active jobs it would find, when known */
+  count: number | null;
+}
+
 export interface JobSearch {
   q?: string;
   location?: string;
   remote?: boolean;
   source?: string;
+  region?: string;
   postedWithinDays?: number;
 }
 
@@ -283,6 +327,15 @@ export interface ScreeningAnswer {
   evidence: string[];
 }
 
+/** What "Fill & Review" did in the Chrome window it opened. */
+export interface FillReview {
+  opened: boolean;
+  filled: string[];
+  aiAnswered: Record<string, string>;
+  leftForYou: string[];
+  note: string | null;
+}
+
 export interface ScreeningAnswers {
   applicationId: string;
   answers: ScreeningAnswer[];
@@ -425,11 +478,15 @@ export interface DeadLetter {
 
 export type SourceRunStatus = 'NEVER' | 'SUCCESS' | 'FAILED';
 
+export type SourceType = 'REST_JSON' | 'HTML_SCRAPE';
+
 export interface JobSource {
   id: string;
   code: string;
   name: string;
-  type: 'REST_JSON';
+  type: SourceType;
+  /** IN, EU, US, GLOBAL...: where the board's jobs are */
+  region: string;
   baseUrl: string;
   searchPath: string | null;
   method: 'GET' | 'POST';
@@ -442,6 +499,8 @@ export interface JobSource {
   priority: number;
   timeoutSeconds: number;
   maxPages: number;
+  /** scheduled runs skip it until this many hours after its last run (small free quotas); null: every run */
+  fetchEveryHours?: number | null;
   lastRunAt: string | null;
   lastRunStatus: SourceRunStatus;
   lastRunMessage: string | null;
@@ -684,4 +743,67 @@ export interface EvalRunMetrics {
   averageLatencyMs?: number;
   passWhen?: { maxMae: number; minValidRate: number };
   cases?: Record<string, Json>[];
+}
+
+// ---------- tailored resume ----------
+
+export interface TailoredResume {
+  applicationId: string;
+  resume: {
+    summary: string;
+    skills: string[];
+    experience: { title: string; company: string; dates: string; bullets: string[] }[];
+    projects: { name: string; bullets: string[] }[];
+    education: string[];
+  };
+  /** share (0-100) of the job's skills the original resume shows */
+  atsBefore: number;
+  atsAfter: number;
+  matched: string[];
+  /** the job's skills the resume doesn't have: never added */
+  missing: string[];
+  /** claims the resume doesn't back; empty when grounded */
+  unsupported: string[];
+  writtenBy: string | null;
+  at: string;
+}
+
+// ---------- sign-in and users ----------
+
+export type UserRole = 'USER' | 'ADMIN';
+
+export interface AuthSession {
+  token: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  mustChangePassword: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  status: 'ACTIVE' | 'DISABLED';
+  createdAt: string;
+  lastLoginAt: string | null;
+  hasPassword: boolean;
+  hasResume: boolean;
+  skills: number;
+  applications: number;
+  needsYou: number;
+  applied: number;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser;
+  profile: Profile;
+  skills: Skill[];
+  resumeFileName: string | null;
+  applicationStats: ApplicationStats;
+  recentApplications: ApplicationSummary[];
+  /** -1 when matching couldn't be asked */
+  matches: number;
 }

@@ -1,14 +1,32 @@
-import { Plus, Save, Trash2, User } from 'lucide-react';
+import { LogOut, Plus, Save, Trash2, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
-import { me } from '@/api/endpoints';
-import type { Profile, ProfileUpdate, Skill } from '@/api/types';
+import { auth, me } from '@/api/endpoints';
+import { useSession } from '@/app/session';
+import { ConfirmButton } from '@/components/ui/overlays';
+import ChangePasswordPage from '@/pages/ChangePasswordPage';
+import type { ApplicationDetails, JobFilters, JobLevel, JobRegion, Profile, ProfileUpdate, Skill } from '@/api/types';
+import { Autocomplete } from '@/components/ui/Autocomplete';
 import { ChipsInput } from '@/components/ui/editors';
-import { Badge, Button, Card, ErrorBox, Field, Input, Notice, PageHeader, Spinner, Toggle } from '@/components/ui/primitives';
+import { Badge, Button, Card, CONTROL, ErrorBox, Field, Input, Notice, PageHeader, Select, Spinner, Toggle } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
-import { inr, timeAgo } from '@/lib/format';
+import { timeAgo } from '@/lib/format';
+import { suggestPlaces, suggestRoles, suggestSkills } from '@/lib/suggest';
+
+const INPUT = CONTROL;
+
+const EMPTY_DETAILS: ApplicationDetails = {
+  currentCompany: null, currentCtc: null, expectedCtc: null, highestDegree: null, fieldOfStudy: null, college: null,
+  educationStartYear: null, graduationYear: null, willingToRelocate: null,
+  gender: null, heardAbout: null, authorizedToWork: null, needsSponsorship: null, disability: null, veteranStatus: null,
+};
+
+const NO_FILTERS: JobFilters = { mustHave: [], region: 'ANYWHERE', level: 'ANY' };
+
+/** 1450000 -> "₹14.5 lakh" */
+const lakh = (rupees: number) => `₹${Number((rupees / 100000).toFixed(2))} lakh`;
 
 function toForm(p: Profile): ProfileUpdate {
   const { userId: _u, updatedAt: _t, ...rest } = p;
@@ -40,7 +58,34 @@ export default function ProfilePage() {
       {profile.isLoading ? <Spinner /> : profile.data && <ProfileForm profile={profile.data} />}
       {skills.error ? <ErrorBox error={skills.error} /> : null}
       {skills.data && <SkillsEditor skills={skills.data} />}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <ChangePasswordPage />
+        <AccountCard />
+      </div>
     </div>
+  );
+}
+
+/** Sign out on every device: after a lost phone, or a shared computer. */
+function AccountCard() {
+  const { signOut } = useSession();
+  const toast = useToast();
+  const everywhere = useMutation({
+    mutationFn: auth.logoutEverywhere,
+    onSuccess: () => {
+      toast.success('Signed out on every device');
+      signOut();
+    },
+    onError: (e) => toast.error('Could not sign out everywhere', e),
+  });
+  return (
+    <Card title="Sessions">
+      <p className="mb-3 text-sm text-slate-500">You stay signed in for 30 days on each browser. Signed in somewhere you shouldn’t be? End every session.</p>
+      <ConfirmButton variant="danger" size="md" icon={<LogOut className="h-4 w-4" />} loading={everywhere.isPending}
+        title="Sign out on every device?" message="Including this one. You sign in again with your password." onConfirm={() => everywhere.mutate()}>
+        Sign out everywhere
+      </ConfirmButton>
+    </Card>
   );
 }
 
@@ -61,6 +106,10 @@ function ProfileForm({ profile }: { profile: Profile }) {
   const fieldError = (name: string) => err?.field(name);
   const set = <K extends keyof ProfileUpdate>(key: K, value: ProfileUpdate[K]) => setForm((f) => ({ ...f, [key]: value }));
   const num = (v: string) => (v === '' ? null : Number(v));
+  const filters: JobFilters = form.filters ?? NO_FILTERS;
+  const setFilters = <K extends keyof JobFilters>(k: K, v: JobFilters[K]) => setForm((f) => ({ ...f, filters: { ...(f.filters ?? NO_FILTERS), [k]: v } }));
+  const det: ApplicationDetails = form.details ?? EMPTY_DETAILS;
+  const setDet = <K extends keyof ApplicationDetails>(k: K, v: ApplicationDetails[K]) => setForm((f) => ({ ...f, details: { ...(f.details ?? EMPTY_DETAILS), [k]: v } }));
 
   return (
     <form
@@ -83,16 +132,116 @@ function ProfileForm({ profile }: { profile: Profile }) {
           <Input value={form.phone ?? ''} placeholder="+91 98765 43210" onChange={(e) => set('phone', e.target.value)} />
         </Field>
         <Field label="Where you live" error={fieldError('location')}>
-          <Input value={form.location ?? ''} maxLength={100} placeholder="Pune" onChange={(e) => set('location', e.target.value)} />
+          <Autocomplete
+            ariaLabel="Where you live"
+            queryKey="locations"
+            fetch={suggestPlaces}
+            maxLength={100}
+            placeholder="Pune"
+            inputClassName={INPUT}
+            value={form.location ?? ''}
+            onChange={(v) => set('location', v)}
+          />
         </Field>
         <Field label="Years of experience" error={fieldError('experienceYears')}>
           <Input type="number" min={0} max={60} value={form.experienceYears ?? ''} onChange={(e) => set('experienceYears', num(e.target.value))} />
         </Field>
-        <Field label="Expected salary (per year)" hint={form.expectedSalary ? inr(form.expectedSalary) : undefined} error={fieldError('expectedSalary')}>
-          <Input type="number" min={0} step={10000} value={form.expectedSalary ?? ''} onChange={(e) => set('expectedSalary', num(e.target.value))} />
-        </Field>
         <Field label="Notice period (days)" error={fieldError('noticePeriodDays')}>
           <Input type="number" min={0} max={365} value={form.noticePeriodDays ?? ''} onChange={(e) => set('noticePeriodDays', num(e.target.value))} />
+        </Field>
+      </Section>
+
+      <Section title="For application forms">
+        <p className="-mt-1 text-sm text-slate-500 md:col-span-2">
+          Most forms ask these. They are only used to fill application forms for you, never for matching, and only go to a company inside an application you send.
+        </p>
+        <Field label="Current company" error={fieldError('details.currentCompany')}>
+          <Input value={det.currentCompany ?? ''} maxLength={100} placeholder="Hyperface" onChange={(e) => setDet('currentCompany', e.target.value || null)} />
+        </Field>
+        <Field label="Willing to relocate?">
+          <Select value={det.willingToRelocate == null ? '' : String(det.willingToRelocate)} onChange={(e) => setDet('willingToRelocate', e.target.value === '' ? null : e.target.value === 'true')}>
+            <option value="">Not set</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </Select>
+        </Field>
+        <Field label="Current CTC (₹ per year)" hint={det.currentCtc ? lakh(det.currentCtc) : undefined} error={fieldError('details.currentCtc')}>
+          <Input type="number" min={0} step={50000} value={det.currentCtc ?? ''} onChange={(e) => setDet('currentCtc', num(e.target.value))} />
+        </Field>
+        <Field label="Expected CTC (₹ per year)" hint={det.expectedCtc ? lakh(det.expectedCtc) : undefined} error={fieldError('details.expectedCtc')}>
+          <Input type="number" min={0} step={50000} value={det.expectedCtc ?? ''} onChange={(e) => setDet('expectedCtc', num(e.target.value))} />
+        </Field>
+        <Field label="Highest degree" error={fieldError('details.highestDegree')}>
+          <Input value={det.highestDegree ?? ''} maxLength={100} placeholder="M.A." onChange={(e) => setDet('highestDegree', e.target.value || null)} />
+        </Field>
+        <Field label="Field of study" error={fieldError('details.fieldOfStudy')}>
+          <Input value={det.fieldOfStudy ?? ''} maxLength={100} placeholder="Sociology" onChange={(e) => setDet('fieldOfStudy', e.target.value || null)} />
+        </Field>
+        <Field label="College / university" error={fieldError('details.college')}>
+          <Input value={det.college ?? ''} maxLength={150} placeholder="Mahatma Gandhi Kashi Vidyapith" onChange={(e) => setDet('college', e.target.value || null)} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Started (year)" error={fieldError('details.educationStartYear')}>
+            <Input type="number" min={1950} max={2100} value={det.educationStartYear ?? ''} onChange={(e) => setDet('educationStartYear', num(e.target.value))} />
+          </Field>
+          <Field label="Finished (year)" error={fieldError('details.graduationYear')}>
+            <Input type="number" min={1950} max={2100} value={det.graduationYear ?? ''} onChange={(e) => setDet('graduationYear', num(e.target.value))} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Questions most forms ask">
+        <p className="text-sm text-slate-500 md:col-span-2">
+          Answer once; we fill these into every application form. Leave one empty and that question is left for you.
+        </p>
+        <Field label="Gender">
+          <Select value={det.gender ?? ''} onChange={(e) => setDet('gender', e.target.value || null)}>
+            <option value="">Not set</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Non-binary</option>
+            <option>Prefer not to say</option>
+          </Select>
+        </Field>
+        <Field label="How did you hear about the job?" hint="Most forms ask; the site you usually find jobs on.">
+          <Select value={det.heardAbout ?? ''} onChange={(e) => setDet('heardAbout', e.target.value || null)}>
+            <option value="">Not set</option>
+            <option>LinkedIn</option>
+            <option>Company website</option>
+            <option>Naukri</option>
+            <option>Job board</option>
+            <option>Referral</option>
+            <option>Other</option>
+          </Select>
+        </Field>
+        <Field label="Authorized to work in India?">
+          <Select value={det.authorizedToWork == null ? '' : String(det.authorizedToWork)} onChange={(e) => setDet('authorizedToWork', e.target.value === '' ? null : e.target.value === 'true')}>
+            <option value="">Not set</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </Select>
+        </Field>
+        <Field label="Need visa sponsorship?">
+          <Select value={det.needsSponsorship == null ? '' : String(det.needsSponsorship)} onChange={(e) => setDet('needsSponsorship', e.target.value === '' ? null : e.target.value === 'true')}>
+            <option value="">Not set</option>
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </Select>
+        </Field>
+        <Field label="Disability (EEO question)">
+          <Select value={det.disability ?? ''} onChange={(e) => setDet('disability', e.target.value || null)}>
+            <option value="">Not set</option>
+            <option>No</option>
+            <option>Yes</option>
+            <option>Prefer not to say</option>
+          </Select>
+        </Field>
+        <Field label="Veteran status (EEO question)">
+          <Select value={det.veteranStatus ?? ''} onChange={(e) => setDet('veteranStatus', e.target.value || null)}>
+            <option value="">Not set</option>
+            <option>I am not a veteran</option>
+            <option>Prefer not to say</option>
+          </Select>
         </Field>
       </Section>
 
@@ -110,14 +259,38 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
       <Section title="What you are looking for">
         <Field label="Target roles" hint="Up to 20. Titles that contain these count as a full title match." error={fieldError('targetRoles')} className="md:col-span-2">
-          <ChipsInput value={form.targetRoles} max={20} placeholder="Backend Developer, Java Developer…" onChange={(v) => set('targetRoles', v)} />
+          <ChipsInput value={form.targetRoles} max={20} placeholder="Backend Developer, Java Developer…" suggest={suggestRoles} suggestKey="roles" onChange={(v) => set('targetRoles', v)} />
         </Field>
         <Field label="Preferred locations" hint="Up to 20 cities." error={fieldError('preferredLocations')} className="md:col-span-2">
-          <ChipsInput value={form.preferredLocations} max={20} placeholder="Pune, Bengaluru…" onChange={(v) => set('preferredLocations', v)} />
+          <ChipsInput value={form.preferredLocations} max={20} placeholder="Pune, Bengaluru, Remote…" suggest={suggestPlaces} suggestKey="locations" onChange={(v) => set('preferredLocations', v)} />
         </Field>
         <div className="md:col-span-2">
           <Toggle checked={form.remoteOk} onChange={(v) => set('remoteOk', v)} label="Open to remote jobs" description="Remote jobs count as a location match." />
         </div>
+      </Section>
+
+      <Section title="Only show me">
+        <Field
+          label="The job must be about"
+          hint="Jobs that don't mention one of these in the title or required skills are never shown, e.g. Java, Spring Boot."
+          error={fieldError('filters.mustHave')}
+          className="md:col-span-2"
+        >
+          <ChipsInput value={filters.mustHave} max={20} placeholder="Java, Spring Boot…" onChange={(v) => setFilters('mustHave', v)} />
+        </Field>
+        <Field label="Where" error={fieldError('filters.region')}>
+          <Select value={filters.region} onChange={(e) => setFilters('region', e.target.value as JobRegion)}>
+            <option value="INDIA">Anywhere in India, and remote jobs open to India</option>
+            <option value="ANYWHERE">Anywhere in the world</option>
+          </Select>
+        </Field>
+        <Field label="Level" hint={form.experienceYears != null ? `You have ${form.experienceYears} years of experience.` : undefined} error={fieldError('filters.level')}>
+          <Select value={filters.level} onChange={(e) => setFilters('level', e.target.value as JobLevel)}>
+            <option value="JUNIOR_MID">Junior and mid (no Senior, Lead, Staff…)</option>
+            <option value="UP_TO_SENIOR">Up to Senior (no Lead, Staff, Principal…)</option>
+            <option value="ANY">Any level</option>
+          </Select>
+        </Field>
       </Section>
 
       <Section title="Never show me">
@@ -161,7 +334,8 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Card title={title}>
+    // suggestion lists open past the card's edge
+    <Card title={title} className="!overflow-visible">
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </Card>
   );
@@ -198,6 +372,7 @@ function SkillsEditor({ skills }: { skills: Skill[] }) {
 
   return (
     <Card
+      className="!overflow-visible"
       title={`Skills (${rows.length})`}
       actions={
         <Button size="sm" icon={<Save className="h-3.5 w-3.5" />} loading={save.isPending} onClick={() => save.mutate()}>
@@ -229,8 +404,20 @@ function SkillsEditor({ skills }: { skills: Skill[] }) {
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Input className="max-w-xs" placeholder="Add a skill, e.g. kafka" value={name} maxLength={50} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} />
-        <Input className="w-24" type="number" min={0} max={50} placeholder="years" value={years} onChange={(e) => setYears(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} />
+        <div className="min-w-[14rem] max-w-xs flex-1">
+          <Autocomplete
+            ariaLabel="Add a skill"
+            queryKey="skills"
+            fetch={suggestSkills}
+            maxLength={50}
+            placeholder="Add a skill, e.g. kafka"
+            inputClassName={INPUT}
+            value={name}
+            onChange={setName}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())}
+          />
+        </div>
+        <Input className="!w-24" type="number" min={0} max={50} placeholder="years" value={years} onChange={(e) => setYears(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} />
         <Button variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={add}>
           Add
         </Button>

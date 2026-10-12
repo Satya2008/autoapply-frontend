@@ -1,8 +1,10 @@
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, Info, Loader2, Radar, TriangleAlert, XCircle } from 'lucide-react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
+import { motion } from 'framer-motion';
 import { ApiError, errorMessage } from '@/api/client';
+import { AnimatedNumber } from './motion';
 
 // ---------- buttons ----------
 
@@ -10,12 +12,13 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-brand-600 text-white shadow-sm shadow-brand-600/30 hover:bg-brand-700 hover:shadow-glow disabled:bg-brand-300 disabled:shadow-none dark:bg-brand-500 dark:hover:bg-brand-400 dark:disabled:bg-brand-900',
+    'shine bg-gradient-to-r from-brand-600 via-violet-600 to-fuchsia-600 bg-[length:200%_100%] bg-left text-white shadow-[0_8px_20px_-8px_rgba(124,58,237,0.6)] hover:-translate-y-px hover:bg-right hover:shadow-glow disabled:from-brand-300 disabled:to-brand-300 disabled:shadow-none disabled:hover:translate-y-0 dark:from-brand-500 dark:to-violet-500 dark:disabled:from-brand-900 dark:disabled:to-brand-900',
   secondary:
-    'bg-white text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10 dark:hover:bg-white/10',
+    'bg-white text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:-translate-y-px hover:bg-white hover:shadow-md hover:ring-slate-300 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10 dark:hover:bg-white/10',
   ghost: 'text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/10',
   danger: 'bg-rose-600 text-white shadow-sm shadow-rose-600/30 hover:bg-rose-700 disabled:bg-rose-300',
-  success: 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 disabled:bg-emerald-300',
+  success:
+    'shine bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm shadow-emerald-600/30 hover:-translate-y-px hover:shadow-[0_8px_24px_-6px_rgba(16,185,129,0.5)] disabled:from-emerald-300 disabled:to-emerald-300 disabled:hover:translate-y-0',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -26,9 +29,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const SIZES = {
-  sm: 'h-8 px-3 text-xs',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-11 px-5 text-sm',
+  sm: 'h-8 rounded-xl px-3 text-xs',
+  md: 'h-10 rounded-2xl px-4 text-sm',
+  lg: 'h-12 rounded-2xl px-6 text-sm',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -41,7 +44,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:active:scale-100 dark:focus-visible:ring-offset-ink-950',
+        'inline-flex shrink-0 items-center justify-center gap-2 font-bold transition-all duration-300 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:active:scale-100 dark:focus-visible:ring-offset-ink-950',
         SIZES[size],
         VARIANTS[variant],
         className,
@@ -68,23 +71,23 @@ export function Card({ title, subtitle, icon, actions, children, className, padd
   return (
     <section
       className={clsx(
-        'overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card dark:border-white/[0.06] dark:bg-ink-900',
+        'overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(30,27,75,0.12)] backdrop-blur transition-[border-color,box-shadow] duration-300 hover:border-brand-200 hover:shadow-[0_24px_50px_-20px_rgba(30,27,75,0.22)] dark:border-white/[0.06] dark:bg-ink-900/80 dark:backdrop-blur dark:hover:border-brand-400/20',
         className,
       )}
     >
       {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-3 px-5 pb-1 pt-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 px-6 pb-1 pt-5">
           <div className="flex min-w-0 items-center gap-3">
             {icon && <IconChip>{icon}</IconChip>}
             <div className="min-w-0">
-              <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">{title}</h2>
+              <h2 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">{title}</h2>
               {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
             </div>
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={padded ? 'p-5' : title || actions ? 'pt-2' : undefined}>{children}</div>
+      <div className={padded ? 'p-6' : title || actions ? 'pt-2' : undefined}>{children}</div>
     </section>
   );
 }
@@ -106,7 +109,7 @@ export function IconChip({ children, tone = 'brand', size = 'md' }: { children: 
   return (
     <span
       className={clsx(
-        'inline-flex shrink-0 items-center justify-center rounded-xl ring-1 ring-inset [&>svg]:h-[18px] [&>svg]:w-[18px]',
+        'inline-flex shrink-0 items-center justify-center rounded-2xl ring-1 ring-inset [&>svg]:h-[18px] [&>svg]:w-[18px]',
         size === 'lg' ? 'h-11 w-11 [&>svg]:h-5 [&>svg]:w-5' : 'h-9 w-9',
         CHIP_TONES[tone],
       )}
@@ -124,16 +127,16 @@ export function PageHeader({ title, subtitle, actions, icon, eyebrow }: {
   eyebrow?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 animate-fade-up">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="flex min-w-0 items-start gap-4">
         {icon && (
-          <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-glow sm:inline-flex [&>svg]:h-6 [&>svg]:w-6">
+          <span className="hidden h-12 w-12 shrink-0 animate-float items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 via-violet-500 to-fuchsia-500 text-white shadow-[0_10px_24px_-8px_rgba(139,92,246,0.6)] sm:inline-flex [&>svg]:h-6 [&>svg]:w-6">
             {icon}
           </span>
         )}
         <div className="min-w-0">
           {eyebrow && <div className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">{eyebrow}</div>}
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{title}</h1>
+          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">{title}</h1>
           {subtitle && <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>}
         </div>
       </div>
@@ -159,15 +162,22 @@ export function Stat({ label, value, hint, tone = 'default', icon, loading }: {
 }) {
   const t = STAT_TONES[tone];
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card dark:border-white/[0.06] dark:bg-ink-900">
-      <div className="flex items-start justify-between gap-2">
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(30,27,75,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lift dark:border-white/[0.06] dark:bg-ink-900/80 dark:hover:border-brand-400/25">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand-400/0 blur-2xl transition-colors duration-500 group-hover:bg-brand-400/20" />
+      <div className="relative flex items-start justify-between gap-2">
         <div className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{label}</div>
-        {icon && <IconChip tone={t.chip}>{icon}</IconChip>}
+        {icon && (
+          <span className="transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
+            <IconChip tone={t.chip}>{icon}</IconChip>
+          </span>
+        )}
       </div>
       {loading ? (
         <div className="skeleton mt-2 h-8 w-16" />
       ) : (
-        <div className={clsx('mt-1 text-[28px] font-bold leading-tight tracking-tight tabular-nums', t.text)}>{value}</div>
+        <div className={clsx('relative mt-1 text-[28px] font-bold leading-tight tracking-tight tabular-nums', t.text)}>
+          {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+        </div>
       )}
       {hint && <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{hint}</div>}
     </div>
@@ -201,8 +211,8 @@ export function Badge({ tone = 'slate', children, className, title }: { tone?: T
 
 // ---------- form controls ----------
 
-const CONTROL =
-  'block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 transition placeholder:text-slate-400 hover:ring-slate-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500 dark:bg-white/[0.03] dark:text-slate-100 dark:ring-white/10 dark:hover:ring-white/20 dark:focus:ring-brand-400';
+export const CONTROL =
+  'block w-full rounded-2xl border-0 bg-slate-50/80 px-4 py-2.5 text-sm text-slate-900 ring-1 ring-inset ring-slate-200 transition placeholder:text-slate-400 hover:ring-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500 dark:bg-white/[0.03] dark:text-slate-100 dark:ring-white/10 dark:hover:ring-white/20 dark:focus:ring-brand-400';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input(
   { className, invalid, ...rest },
@@ -332,8 +342,8 @@ export function EmptyState({ title, children, icon, action }: { title: string; c
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
       <div className="relative">
-        <div className="absolute inset-0 -m-3 rounded-full bg-brand-100/60 blur-xl dark:bg-brand-500/10" />
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-500 shadow-card ring-1 ring-slate-200/80 dark:bg-ink-800 dark:text-brand-300 dark:ring-white/10 [&>svg]:h-6 [&>svg]:w-6">
+        <div className="absolute inset-0 -m-3 animate-pulse rounded-full bg-brand-100/60 blur-xl dark:bg-brand-500/15" />
+        <div className="relative flex h-14 w-14 animate-float items-center justify-center rounded-2xl bg-white text-brand-500 shadow-card ring-1 ring-slate-200/80 dark:bg-ink-800 dark:text-brand-300 dark:ring-white/10 [&>svg]:h-6 [&>svg]:w-6">
           {icon ?? <Radar />}
         </div>
       </div>
@@ -389,26 +399,32 @@ export function Tabs<T extends string>({ value, onChange, tabs }: {
   onChange: (value: T) => void;
   tabs: { value: T; label: ReactNode; count?: number }[];
 }) {
+  const pill = useId();
   return (
-    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-slate-900/[0.04] p-1 dark:bg-white/5">
+    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-2xl bg-white/70 p-1 ring-1 ring-slate-200/70 dark:bg-white/5 dark:ring-0">
       {tabs.map((tab) => (
         <button
           key={tab.value}
           type="button"
           onClick={() => onChange(tab.value)}
           className={clsx(
-            'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all',
-            value === tab.value
-              ? 'bg-white text-slate-900 shadow-sm dark:bg-ink-700 dark:text-white'
-              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+            'relative inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-sm font-semibold transition-colors',
+            value === tab.value ? 'text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
           )}
         >
-          {tab.label}
+          {value === tab.value && (
+            <motion.span
+              layoutId={pill}
+              className="absolute inset-0 -z-0 rounded-xl bg-gradient-to-r from-brand-600 via-violet-600 to-fuchsia-600 shadow-[0_6px_16px_-6px_rgba(124,58,237,0.6)]"
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            />
+          )}
+          <span className="relative inline-flex items-center gap-1.5">{tab.label}</span>
           {tab.count !== undefined && (
             <span
               className={clsx(
-                'rounded-md px-1.5 text-xs tabular-nums',
-                value === tab.value ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'bg-slate-900/5 dark:bg-white/10',
+                'relative rounded-md px-1.5 text-xs tabular-nums',
+                value === tab.value ? 'bg-white/25 text-white' : 'bg-slate-900/5 dark:bg-white/10',
               )}
             >
               {tab.count}
@@ -473,7 +489,7 @@ export function ProgressBar({ value, max = 1, tone = 'brand' }: { value: number;
   };
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
-      <div className={clsx('h-full rounded-full transition-all duration-500', colors[tone])} style={{ width: `${width}%` }} />
+      <div className={clsx('bar-grow h-full rounded-full transition-all duration-700', colors[tone])} style={{ width: `${width}%` }} />
     </div>
   );
 }

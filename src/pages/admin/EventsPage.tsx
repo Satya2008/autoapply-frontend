@@ -50,7 +50,7 @@ export default function EventsPage() {
           <Spinner />
         )}
       </Card>
-      <Card title="Dead letters" actions={<Input className="w-56" placeholder="filter by topic" value={topic} onChange={(e) => setTopic(e.target.value)} />}>
+      <Card title="Dead letters" actions={<Input className="!w-56" placeholder="filter by topic" value={topic} onChange={(e) => setTopic(e.target.value)} />}>
         {letters.error ? <ErrorBox error={letters.error} /> : null}
         {letters.isLoading ? (
           <Spinner />

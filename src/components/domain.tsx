@@ -1,7 +1,9 @@
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
 import { ExternalLink, Sparkles } from 'lucide-react';
 import type { ApplicationStatus, RiskBand } from '@/api/types';
 import { humanize } from '@/lib/format';
+import { AnimatedNumber } from './ui/motion';
 import type { Tone } from './ui/primitives';
 import { Badge } from './ui/primitives';
 
@@ -20,16 +22,42 @@ const STATUS_TONES: Record<ApplicationStatus, Tone> = {
   SKIPPED: 'slate',
 };
 
+/** What each status is called on screen, and what it means, in the user's words. */
+export const STATUS_TEXT: Record<ApplicationStatus, { label: string; hint: string }> = {
+  PLANNED: { label: 'Planned', hint: 'Picked from your matches; about to be sent or handed to you.' },
+  QUEUED: { label: 'Sending soon', hint: 'Waiting its turn to be sent for you.' },
+  SENDING: { label: 'Sending', hint: 'Being sent for you right now.' },
+  SIMULATED: { label: 'Practice (not sent)', hint: 'Auto-apply is in practice mode: recorded, but nothing went to the company.' },
+  SUBMITTED: { label: 'Sent for you', hint: 'Sent automatically; the site confirmed it.' },
+  FAILED: { label: 'Couldn’t send', hint: 'Sending failed; it is tried again later, then handed to you.' },
+  NEEDS_YOU: { label: 'Waiting for you', hint: 'This site can’t be applied to automatically: open it and apply, your answers are ready.' },
+  APPLIED: { label: 'Applied', hint: 'You applied yourself and marked it.' },
+  INTERVIEW: { label: 'Interview', hint: 'You got an interview.' },
+  OFFER: { label: 'Offer', hint: 'You got an offer.' },
+  REJECTED: { label: 'Rejected', hint: 'The company said no.' },
+  SKIPPED: { label: 'Skipped', hint: 'You chose not to apply.' },
+};
+
 export function StatusBadge({ status }: { status: ApplicationStatus }) {
-  return <Badge tone={STATUS_TONES[status]}>{humanize(status)}</Badge>;
+  const text = STATUS_TEXT[status] ?? { label: humanize(status), hint: '' };
+  return (
+    <Badge tone={STATUS_TONES[status]} title={text.hint}>
+      {text.label}
+    </Badge>
+  );
 }
 
+/** Who applies: the app on sites built for it, the user everywhere else. */
 export function RiskBadge({ risk }: { risk: RiskBand }) {
   const tone: Tone = risk === 'LOW' ? 'green' : risk === 'MEDIUM' ? 'amber' : 'red';
-  const title = risk === 'LOW' ? 'Can be applied to automatically' : risk === 'MEDIUM' ? 'Unknown site: you apply' : 'Bans automation: you apply';
+  const title = risk === 'LOW'
+    ? 'A career site we know: we fill the whole form for you.'
+    : risk === 'MEDIUM'
+      ? 'A site we don’t know yet: we fill what we can, you check the rest.'
+      : 'This site bans automated tools: you apply yourself, with your answers ready to copy.';
   return (
     <Badge tone={tone} title={title}>
-      {humanize(risk)} risk
+      {risk === 'LOW' ? 'We fill it' : risk === 'MEDIUM' ? 'We fill, you check' : 'You apply'}
     </Badge>
   );
 }
@@ -54,22 +82,24 @@ export function ScoreRing({ score, size = 48, label }: { score: number; size?: n
     <div className="relative shrink-0" style={{ width: size, height: size }} title={label ?? `Score ${score}/100`}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} className="fill-none stroke-slate-100 dark:stroke-white/10" strokeWidth={stroke} />
-        <circle
+        <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          className={clsx('fill-none transition-all duration-700', color)}
+          className={clsx('fill-none', color)}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - Math.max(0, Math.min(100, score)) / 100)}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: circumference * (1 - Math.max(0, Math.min(100, score)) / 100) }}
+          transition={{ duration: 1.2, ease: [0.2, 0.8, 0.2, 1] }}
         />
       </svg>
       <span
         className={clsx('absolute inset-0 flex items-center justify-center font-bold tabular-nums', text)}
         style={{ fontSize: Math.max(12, Math.round(size * 0.3)) }}
       >
-        {score}
+        <AnimatedNumber value={score} />
       </span>
     </div>
   );

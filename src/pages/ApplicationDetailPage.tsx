@@ -3,18 +3,20 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { applications } from '@/api/endpoints';
-import type { ApplicationStatus } from '@/api/types';
+import type { ApplicationStatus, FillReview } from '@/api/types';
+import { FillReviewButton, FillReviewSummary, canFillForYou } from '@/components/fillReview';
 import { ApplyLink, RiskBadge, StatusBadge } from '@/components/domain';
+import { AnswerTiles, friendlyReason } from '@/components/answers';
 import { ConfirmButton } from '@/components/ui/overlays';
-import { CopyButton } from '@/components/ui/editors';
 import { Button, Card, ErrorBox, Field, Input, KeyValue, Notice, PageHeader, Select, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { TailoredResumePanel } from '@/components/tailoredResume';
 import { CoverLetterPanel, ScreeningPanel } from '@/components/writing';
 import { dateTime, humanize, timeAgo } from '@/lib/format';
 import { JobDrawer } from './JobsPage';
 
 const OUTCOMES: ApplicationStatus[] = ['INTERVIEW', 'OFFER', 'REJECTED'];
-const WAITING: ApplicationStatus[] = ['NEEDS_YOU', 'FAILED', 'PLANNED'];
+const WAITING: ApplicationStatus[] = ['NEEDS_YOU', 'FAILED', 'PLANNED', 'SIMULATED'];
 
 export default function ApplicationDetailPage() {
   const { id } = useParams();
@@ -23,6 +25,7 @@ export default function ApplicationDetailPage() {
   const [showJob, setShowJob] = useState(false);
   const [outcome, setOutcome] = useState<ApplicationStatus>('INTERVIEW');
   const [note, setNote] = useState('');
+  const [filled, setFilled] = useState<FillReview | null>(null);
   const detail = useQuery({ queryKey: ['applications', 'detail', id], queryFn: () => applications.get(id as string) });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -63,11 +66,13 @@ export default function ApplicationDetailPage() {
             }
           />
 
-          {a.status === 'NEEDS_YOU' && d.needsYouReason && <Notice tone="amber">{d.needsYouReason}</Notice>}
-          {d.lastError && <Notice tone="red">Last attempt failed: {d.lastError}</Notice>}
+          {a.status === 'NEEDS_YOU' && d.needsYouReason && <Notice tone="amber">{friendlyReason(d.needsYouReason)}</Notice>}
+          {/* once it waits for the user, an old failed try only confuses */}
+          {d.lastError && a.status === 'FAILED' && <Notice tone="red">Last attempt failed: {d.lastError}</Notice>}
 
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="space-y-5 lg:col-span-2">
+              <TailoredResumePanel applicationId={a.id} company={a.company} />
               <CoverLetterPanel applicationId={a.id} saved={d.coverLetter} />
               <ScreeningPanel applicationId={a.id} />
             </div>
@@ -75,7 +80,18 @@ export default function ApplicationDetailPage() {
             <div className="space-y-5">
               <Card title="What to do">
                 {WAITING.includes(a.status) ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    {canFillForYou(a.riskBand) && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">
+                          We open the form in Chrome and fill it for you. You check it and press Submit.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <FillReviewButton applicationId={a.id} onResult={setFilled} />
+                        </div>
+                        {filled && <FillReviewSummary result={filled} />}
+                      </div>
+                    )}
                     <p className="text-sm text-slate-500">Applied on the site yourself? Mark it done. Not interested? Skip it.</p>
                     <div className="flex gap-2">
                       <Button variant="success" icon={<Check className="h-4 w-4" />} loading={done.isPending} onClick={() => done.mutate(undefined, { onError: (e) => toast.error('Could not mark it', e) })}>
@@ -120,28 +136,21 @@ export default function ApplicationDetailPage() {
                 <KeyValue
                   items={[
                     ['Match score', a.matchScore],
-                    ['Sent via', a.submittedVia ? humanize(a.submittedVia) : '—'],
-                    ['Attempts', d.attempts],
-                    ['Next attempt', d.nextAttemptAt ? dateTime(d.nextAttemptAt) : '—'],
                     ['Created', dateTime(a.createdAt)],
+                    // sending details only mean something once the app tried to send it
+                    ...(a.submittedVia ? [['Sent via', humanize(a.submittedVia)] as [string, string]] : []),
+                    ...(d.attempts > 0 ? [['Tries to send', d.attempts] as [string, number]] : []),
+                    ...(d.nextAttemptAt && a.status === 'FAILED' ? [['Next try', dateTime(d.nextAttemptAt)] as [string, string]] : []),
                   ]}
                 />
-                {d.riskReason && <p className="mt-3 text-xs text-slate-500">Why this risk: {d.riskReason}</p>}
+                {d.riskReason && friendlyReason(d.riskReason) !== friendlyReason(d.needsYouReason) && (
+                  <p className="mt-3 text-xs text-slate-500">{friendlyReason(d.riskReason)}</p>
+                )}
               </Card>
 
               {d.prefill && Object.keys(d.prefill).length > 0 && (
                 <Card title="Answers ready to paste">
-                  <ul className="space-y-2">
-                    {Object.entries(d.prefill).map(([k, v]) => (
-                      <li key={k} className="flex items-center justify-between gap-2 text-sm">
-                        <div className="min-w-0">
-                          <div className="text-xs text-slate-500">{humanize(k)}</div>
-                          <div className="truncate font-medium">{v}</div>
-                        </div>
-                        <CopyButton text={v} label="" />
-                      </li>
-                    ))}
-                  </ul>
+                  <AnswerTiles answers={d.prefill} compact />
                 </Card>
               )}
 

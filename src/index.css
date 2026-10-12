@@ -10,7 +10,7 @@
     color-scheme: dark;
   }
   body {
-    @apply bg-[#f4f5fa] text-slate-900 antialiased dark:bg-ink-950 dark:text-slate-100;
+    @apply bg-[#fbfaff] text-slate-900 antialiased dark:bg-ink-950 dark:text-slate-100;
     font-feature-settings: 'cv11', 'ss01';
   }
   ::selection {
@@ -43,6 +43,81 @@
   }
   .link {
     @apply inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-300 dark:hover:text-brand-200;
+  }
+}
+
+/* Page content rises in one block after another: every page root's children get a growing delay. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes shine {
+  from {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(350%) skewX(-20deg);
+  }
+}
+
+.stagger > * > * {
+  animation: rise-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.stagger > * > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > * > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > * > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > * > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > * > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > * > *:nth-child(n + 7) { animation-delay: 360ms; }
+
+/* Bars fill from the left when they first appear. */
+.bar-grow {
+  transform-origin: left;
+  animation: grow-x 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* A light streak crossing a button on hover. */
+.shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shine::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-150%) skewX(-20deg);
+  pointer-events: none;
+}
+.shine:hover::after {
+  animation: shine 0.9s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

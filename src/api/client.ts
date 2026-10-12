@@ -1,6 +1,6 @@
 /**
  * One way to call the backend: every request goes through the gateway (/api), carries the
- * signed-in user's id, and every error comes back as an ApiError built from the backend's
+ * signed-in session's token, and every error comes back as an ApiError built from the backend's
  * Problem Details (RFC 9457), so screens can show the server's own message and field errors.
  */
 
@@ -25,11 +25,17 @@ export class ApiError extends Error {
   }
 }
 
-let userId: string | null = null;
+let token: string | null = null;
+let onSessionEnded: (() => void) | null = null;
 
-/** Set by the session; until Phase 8 adds login the gateway trusts this header. */
-export function setApiUser(id: string | null): void {
-  userId = id;
+/** Set by the session after sign-in; every request then carries it as a Bearer token. */
+export function setApiToken(value: string | null): void {
+  token = value;
+}
+
+/** Called when the server says the session is over (signed out elsewhere, expired, disabled). */
+export function onUnauthorized(callback: (() => void) | null): void {
+  onSessionEnded = callback;
 }
 
 export function buildUrl(path: string, query?: Query): string {
@@ -46,7 +52,7 @@ export function buildUrl(path: string, query?: Query): string {
 }
 
 export function authHeaders(): Record<string, string> {
-  return userId ? { 'X-User-Id': userId } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 interface RequestOptions {
@@ -75,6 +81,10 @@ export async function request<T>(method: string, path: string, options: RequestO
     throw new ApiError(0, 'Network error', 'Could not reach the server. Is the gateway running on :8080?');
   }
   if (!response.ok) {
+    // a signed-in call refused as unauthenticated: the session is gone, so sign out here too
+    if (response.status === 401 && token && !path.startsWith('/api/v1/auth/')) {
+      onSessionEnded?.();
+    }
     throw await toApiError(response);
   }
   if (response.status === 204) {

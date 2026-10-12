@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { applications } from '@/api/endpoints';
 import { ApplyLink, CompanyAvatar, RiskBadge } from '@/components/domain';
-import { CopyButton } from '@/components/ui/editors';
+import { AnswerTiles, friendlyReason } from '@/components/answers';
+import { FillReviewButton, canFillForYou } from '@/components/fillReview';
 import { Button, Card, EmptyState, ErrorBox, PageHeader, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
-import { humanize } from '@/lib/format';
 
 /**
  * The applications only you can finish: sites that ban automation, unknown sites, or forms
@@ -25,13 +25,25 @@ export default function NeedsYouPage() {
       <PageHeader
         icon={<HandHelping />}
         title="Needs you"
-        subtitle="These can't be sent automatically. Open the site, paste your answers, then mark each one done, or skip it."
+        subtitle="Jobs that need your last step. Press “Fill for me” and we fill the form in Chrome; you check it and press Submit. On LinkedIn or Naukri, open the site and copy your answers from here. Then press “I applied” or Skip."
       />
       {queue.error ? <ErrorBox error={queue.error} onRetry={() => queue.refetch()} /> : null}
       {queue.isLoading ? (
         <Spinner />
       ) : !queue.data?.length ? (
-        <Card><EmptyState title="All clear" icon={<CheckCircle2 />}>Nothing is waiting for you.</EmptyState></Card>
+        <Card>
+          <EmptyState
+            title="Nothing to apply to by hand"
+            icon={<CheckCircle2 />}
+            action={
+              <Link to="/applications" className="link">
+                Go to Applications <ChevronRight className="h-4 w-4" />
+              </Link>
+            }
+          >
+            When you press “Apply to my matches”, jobs on sites that can't be applied to automatically land here, each with your details and answers ready to copy.
+          </EmptyState>
+        </Card>
       ) : (
         <div className="space-y-3">
           {queue.data.map((n) => {
@@ -50,12 +62,21 @@ export default function NeedsYouPage() {
                       {a.location ? ` · ${a.location}` : ''} · score {a.matchScore}
                     </div>
                     {n.reason && (
-                      <div className="mt-2 inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{n.reason}</div>
+                      <div
+                        className={
+                          /^Ready in Chrome/i.test(n.reason)
+                            ? 'mt-2 inline-flex rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 dark:bg-violet-500/10 dark:text-violet-300'
+                            : 'mt-2 inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
+                        }
+                      >
+                        {friendlyReason(n.reason)}
+                      </div>
                     )}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <RiskBadge risk={a.riskBand} />
+                    {canFillForYou(a.riskBand) && <FillReviewButton applicationId={a.id} size="sm" />}
                     <ApplyLink url={a.applyUrl} label="Open the site" />
                     <Button size="sm" variant="success" icon={<Check className="h-3.5 w-3.5" />} loading={done.isPending && done.variables === a.id}
                       onClick={() => done.mutate(a.id, { onError: (e) => toast.error('Could not mark it', e) })}>
@@ -68,16 +89,8 @@ export default function NeedsYouPage() {
                   </div>
                 </div>
                 {n.prefill && Object.keys(n.prefill).length > 0 && (
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {Object.entries(n.prefill).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-white/5 dark:bg-white/[0.03]">
-                        <div className="min-w-0">
-                          <div className="text-xs text-slate-500">{humanize(k)}</div>
-                          <div className="truncate text-sm font-medium">{v}</div>
-                        </div>
-                        <CopyButton text={v} label="" />
-                      </div>
-                    ))}
+                  <div className="mt-4">
+                    <AnswerTiles answers={n.prefill} />
                   </div>
                 )}
               </Card>

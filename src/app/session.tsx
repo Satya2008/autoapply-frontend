@@ -1,52 +1,84 @@
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { setApiUser } from '@/api/client';
-import type { User } from '@/api/types';
+import { onUnauthorized, setApiToken } from '@/api/client';
+import { auth } from '@/api/endpoints';
+import type { AuthSession, UserRole } from '@/api/types';
 
-/**
- * Who is using the app. Until Phase 8 adds real login, signing in means picking a user by
- * email (created if new); the id then goes on every request as X-User-Id.
- */
-interface Session {
-  user: Pick<User, 'id' | 'email'> | null;
-  signIn: (user: Pick<User, 'id' | 'email'>) => void;
-  signOut: () => void;
+/** The signed-in user, as the server described them at sign-in. */
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  mustChangePassword: boolean;
+  token: string;
 }
 
-const KEY = 'naukriradar.session';
+interface Session {
+  user: SessionUser | null;
+  isAdmin: boolean;
+  signIn: (session: AuthSession) => void;
+  signOut: () => void;
+  /** After a password change: no longer forced to change it. */
+  passwordChanged: () => void;
+}
 
-function load(): Session['user'] {
+const KEY = 'naukriradar.session.v2';
+
+function load(): SessionUser | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Session['user']) : null;
+    const user = raw ? (JSON.parse(raw) as SessionUser) : null;
+    return user?.token ? user : null;
   } catch {
     return null;
+  }
+}
+
+function save(user: SessionUser | null) {
+  try {
+    if (user) {
+      localStorage.setItem(KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(KEY);
+    }
+  } catch {
+    // private window: the session lasts until the tab closes
   }
 }
 
 const SessionContext = createContext<Session | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Session['user']>(() => {
+  const [user, setUser] = useState<SessionUser | null>(() => {
     const saved = load();
-    setApiUser(saved?.id ?? null);
+    setApiToken(saved?.token ?? null);
     return saved;
   });
   const queryClient = useQueryClient();
 
+  const clear = useCallback(() => {
+    save(null);
+    setApiToken(null);
+    queryClient.clear();
+    setUser(null);
+  }, [queryClient]);
+
   useEffect(() => {
-    setApiUser(user?.id ?? null);
-  }, [user]);
+    // the server ended the session (signed out elsewhere, expired, disabled): back to sign-in
+    onUnauthorized(clear);
+    return () => onUnauthorized(null);
+  }, [clear]);
 
   const signIn = useCallback(
-    (next: Pick<User, 'id' | 'email'>) => {
-      setApiUser(next.id);
-      try {
-        localStorage.setItem(KEY, JSON.stringify(next));
-      } catch {
-        // private window: the session lasts until the tab closes
-      }
+    (session: AuthSession) => {
+      const next: SessionUser = {
+        id: session.userId, email: session.email, name: session.name, role: session.role,
+        mustChangePassword: session.mustChangePassword, token: session.token,
+      };
+      setApiToken(next.token);
+      save(next);
       queryClient.clear();
       setUser(next);
     },
@@ -54,17 +86,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(() => {
-    try {
-      localStorage.removeItem(KEY);
-    } catch {
-      // nothing saved
-    }
-    setApiUser(null);
-    queryClient.clear();
-    setUser(null);
-  }, [queryClient]);
+    // tell the server so the token stops working, but leave at once either way
+    auth.logout().catch(() => undefined).finally(clear);
+  }, [clear]);
 
-  const value = useMemo(() => ({ user, signIn, signOut }), [user, signIn, signOut]);
+  const passwordChanged = useCallback(() => {
+    setUser((current) => {
+      if (!current) {
+        return current;
+      }
+      const next = { ...current, mustChangePassword: false };
+      save(next);
+      return next;
+    });
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, isAdmin: user?.role === 'ADMIN', signIn, signOut, passwordChanged }),
+    [user, signIn, signOut, passwordChanged],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

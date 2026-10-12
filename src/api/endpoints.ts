@@ -1,17 +1,31 @@
 import { api, authHeaders, request, toApiError } from './client';
 import type {
-  AiProvider, AiProviderCreate, AiProviderTypeInfo, AiProviderUpdate, AiTestResult, AiUsageRow, ApplicationDetail,
+  AdminUser, AdminUserDetail, AiProvider, AiProviderCreate, AiProviderTypeInfo, AiProviderUpdate, AiTestResult, AiUsageRow,
+  ApplicationDetail, AuthSession, UserRole,
   ApplicationStats, ApplicationStatus, ApplicationSummary, ApplyRun, AuditEntry, CacheStats, Cleanup, CoverLetter,
   DeadLetter, DependencyState, DirectUpload, DownloadUrl, EmbeddingStatus, EvalCase, EvalCaseJob, EvalCaseProfile,
-  EvalRun, FetchRun, JobDetail, JobSearch, JobSource, JobSourceInput, JobSummary, MatchDetail, MatchRun, MatchSummary,
+  EvalRun, FetchRun, FillReview, JobDetail, JobSearch, JobSource, JobSourceInput, JobSummary, MatchDetail, MatchRun, MatchSummary,
   NeedsYou, NotificationPreferences, OutboxStats, Page, Portal, PortalInput, Profile, ProfileUpdate, Prompt, Resume,
   ResumeUpload, ScheduledJob, ScreeningAnswers, ServiceName, Setting, Skill, SkillGap, SourceDryRun, SourceFetchResult,
-  StorageMigration, TelegramLink, User, Json,
+  StorageMigration, Suggestion, TailoredResume, TelegramLink, Json,
 } from './types';
 
-export const users = {
-  create: (email: string) => api.post<User>('/api/v1/dev/users', { email }),
-  findByEmail: (email: string) => api.get<User>('/api/v1/dev/users', { email }),
+export const auth = {
+  register: (name: string, email: string, password: string) =>
+    api.post<AuthSession>('/api/v1/auth/register', { name, email, password }),
+  login: (email: string, password: string) => api.post<AuthSession>('/api/v1/auth/login', { email, password }),
+  logout: () => api.post<void>('/api/v1/auth/logout'),
+  logoutEverywhere: () => api.post<void>('/api/v1/auth/logout-everywhere'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<void>('/api/v1/auth/change-password', { currentPassword, newPassword }),
+};
+
+export const adminUsers = {
+  list: () => api.get<AdminUser[]>('/api/v1/admin/users'),
+  get: (id: string) => api.get<AdminUserDetail>(`/api/v1/admin/users/${id}`),
+  setStatus: (id: string, status: 'ACTIVE' | 'DISABLED') => api.patch<AdminUser>(`/api/v1/admin/users/${id}/status`, { status }),
+  setRole: (id: string, role: UserRole) => api.patch<AdminUser>(`/api/v1/admin/users/${id}/role`, { role }),
+  resetPassword: (id: string) => api.post<{ temporaryPassword: string }>(`/api/v1/admin/users/${id}/reset-password`),
 };
 
 export const me = {
@@ -71,6 +85,8 @@ export const jobs = {
   search: (filters: JobSearch, cursor?: string | null, limit = 20) =>
     api.get<Page<JobSummary>>('/api/v1/jobs', { ...filters, cursor, limit }),
   get: (id: string) => api.get<JobDetail>(`/api/v1/jobs/${id}`),
+  suggestLocations: (q: string) => api.get<Suggestion[]>('/api/v1/jobs/suggest/locations', { q }),
+  suggestKeywords: (q: string) => api.get<Suggestion[]>('/api/v1/jobs/suggest/keywords', { q }),
 };
 
 export const matches = {
@@ -96,6 +112,26 @@ export const applications = {
     api.patch<ApplicationDetail>(`/api/v1/me/applications/${id}/status`, { status, note: note || undefined }),
   coverLetter: (id: string, regenerate: boolean) =>
     api.post<CoverLetter>(`/api/v1/me/applications/${id}/cover-letter`, undefined, { regenerate }),
+  fillReview: (id: string) => api.post<FillReview>(`/api/v1/me/applications/${id}/fill-review`),
+  tailorResume: (id: string) => api.post<TailoredResume>(`/api/v1/me/applications/${id}/tailored-resume`),
+  tailoredResume: (id: string) => api.get<TailoredResume>(`/api/v1/me/applications/${id}/tailored-resume`),
+  /** The tailored resume as a PDF file, saved by the browser. */
+  async downloadTailoredResume(id: string, fileName: string): Promise<void> {
+    const response = await fetch(`/api/v1/me/applications/${id}/tailored-resume/pdf`, { headers: authHeaders() });
+    if (!response.ok) {
+      throw await toApiError(response);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  /** "Apply" on a match: tracked under Applications, and the link to apply on. */
+  openMatch: (jobId: string) => api.post<{ applicationId: string; applyUrl: string }>(`/api/v1/me/applications/from-match/${jobId}/open`),
+  fillMatch: (jobId: string) =>
+    api.post<{ applicationId: string; fill: FillReview }>(`/api/v1/me/applications/from-match/${jobId}/fill-review`),
   screeningAnswers: (id: string, questions: string[]) =>
     api.post<ScreeningAnswers>(`/api/v1/me/applications/${id}/screening-answers`, { questions }),
 };

@@ -1,14 +1,15 @@
-import { ClipboardList } from 'lucide-react';
+import { ArrowRight, ClipboardList, HandHelping, Send, Target, TrendingUp } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { applications } from '@/api/endpoints';
 import type { ApplicationStatus } from '@/api/types';
 import { APPLICATION_STATUSES } from '@/api/types';
 import { useStoredState } from '@/app/hooks';
-import { CompanyAvatar, RiskBadge, ScoreRing, StatusBadge } from '@/components/domain';
+import { CompanyAvatar, RiskBadge, ScoreRing, STATUS_TEXT, StatusBadge } from '@/components/domain';
 import { ApplyRunPanel } from '@/components/runs';
 import { Button, Card, EmptyState, ErrorBox, PageHeader, Spinner, Table, Td } from '@/components/ui/primitives';
-import { humanize, timeAgo } from '@/lib/format';
+import { timeAgo } from '@/lib/format';
 
 type Filter = ApplicationStatus | 'ALL';
 
@@ -24,33 +25,67 @@ export default function ApplicationsPage() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = stats.data?.byStatus ?? {};
   const statuses = APPLICATION_STATUSES.filter((s) => (counts[s] ?? 0) > 0 || s === filter);
+  const waiting = counts.NEEDS_YOU ?? 0;
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        icon={<ClipboardList />}
-        title="Applications"
-        subtitle="Everything applied to or waiting, with its history. Applications to sites that ban automation are never sent automatically: they wait for you."
-      />
+      <PageHeader icon={<ClipboardList />} title="Applications" subtitle="Every job you applied to, or are about to, and where each one stands." />
+
       <Card>
-        <ApplyRunPanel />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Step n={1} icon={<Target />} title="Pick from your matches">
+            “Apply to my matches” takes your matches that score at least your minimum (Profile), up to your daily limit.
+          </Step>
+          <Step n={2} icon={<Send />} title="Filled for you, you press Submit">
+            In{' '}
+            <Link to="/needs-you" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">
+              Needs you
+            </Link>{' '}
+            press “Fill for me”: we fill the form in Chrome and you only check it and press Submit. On LinkedIn and Naukri you apply yourself, with your answers ready to copy.
+          </Step>
+          <Step n={3} icon={<TrendingUp />} title="Track it">
+            Mark what you applied to, then move it on: Applied → Interview → Offer. Open any row for the cover letter and its history.
+          </Step>
+        </div>
+        <div className="mt-5 border-t border-slate-100 pt-4 dark:border-white/5">
+          <ApplyRunPanel />
+        </div>
       </Card>
 
-      <div className="flex flex-wrap gap-1.5">
-        <FilterChip active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="All" count={stats.data?.total} />
-        {statuses.map((s) => (
-          <FilterChip key={s} active={filter === s} onClick={() => setFilter(s)} label={humanize(s)} count={counts[s] ?? 0} />
-        ))}
-      </div>
+      {waiting > 0 && (
+        <Link
+          to="/needs-you"
+          className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20"
+        >
+          <HandHelping className="h-5 w-5 shrink-0" />
+          <span className="flex-1">
+            <b>{waiting}</b> {waiting === 1 ? 'application is' : 'applications are'} waiting for you to apply on the company’s site.
+          </span>
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      )}
+
+      {(stats.data?.total ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <FilterChip active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="All" count={stats.data?.total} />
+          {statuses.map((s) => (
+            <FilterChip key={s} active={filter === s} onClick={() => setFilter(s)} label={STATUS_TEXT[s].label} title={STATUS_TEXT[s].hint} count={counts[s] ?? 0} />
+          ))}
+        </div>
+      )}
 
       {list.error ? <ErrorBox error={list.error} onRetry={() => list.refetch()} /> : null}
       {list.isLoading ? (
         <Spinner />
       ) : items.length === 0 ? (
-        <Card><EmptyState title="No applications here" icon={<ClipboardList />}>Run applying from your matches to create some.</EmptyState></Card>
+        <Card>
+          <EmptyState title={filter === 'ALL' ? 'No applications yet' : `Nothing is “${STATUS_TEXT[filter].label}”`} icon={<ClipboardList />}>
+            {filter === 'ALL' ? 'Press “Apply to my matches” above: your best matches become applications here.' : STATUS_TEXT[filter].hint}
+          </EmptyState>
+        </Card>
       ) : (
         <Card padded={false}>
-          <Table head={['Job', 'Status', 'Risk', 'Score', 'Sent via', 'Updated']}>
+          <Table head={['Job', 'Status', 'How', 'Match', 'Updated']}>
             {items.map((a) => (
               <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                 <Td>
@@ -72,7 +107,6 @@ export default function ApplicationsPage() {
                   <RiskBadge risk={a.riskBand} />
                 </Td>
                 <Td><ScoreRing score={a.matchScore} size={34} /></Td>
-                <Td>{a.submittedVia ? humanize(a.submittedVia) : '—'}</Td>
                 <Td className="whitespace-nowrap text-xs text-slate-500">{timeAgo(a.updatedAt)}</Td>
               </tr>
             ))}
@@ -90,11 +124,29 @@ export default function ApplicationsPage() {
   );
 }
 
-function FilterChip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count?: number }) {
+function Step({ n, icon, title, children }: { n: number; icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-fuchsia-500 text-white shadow-md [&>svg]:h-5 [&>svg]:w-5">
+        {icon}
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-900 shadow ring-1 ring-slate-100">
+          {n}
+        </span>
+      </span>
+      <div>
+        <div className="text-sm font-bold text-slate-900 dark:text-white">{title}</div>
+        <p className="mt-0.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({ active, onClick, label, count, title }: { active: boolean; onClick: () => void; label: string; count?: number; title?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className={
         active
           ? 'rounded-lg bg-ink-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm dark:bg-white dark:text-ink-900'
