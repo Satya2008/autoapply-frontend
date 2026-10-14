@@ -168,6 +168,8 @@ export interface Suggestion {
   count: number | null;
 }
 
+export type JobSort = 'NEWEST' | 'OLDEST' | 'SALARY';
+
 export interface JobSearch {
   q?: string;
   location?: string;
@@ -175,6 +177,7 @@ export interface JobSearch {
   source?: string;
   region?: string;
   postedWithinDays?: number;
+  sort?: JobSort;
 }
 
 // ---------- matching ----------

@@ -55,7 +55,12 @@ export default function JobsPage() {
           onChange={(v) => set({ q: v.length ? v.join(', ') : undefined })}
         />
         {keywords.length > 1 && <p className="mt-1.5 px-1 text-xs text-slate-500">Showing jobs that match any of these keywords.</p>}
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <Select aria-label="Sort by" value={filters.sort ?? 'NEWEST'} onChange={(e) => set({ sort: e.target.value as JobSearch['sort'] })}>
+            <option value="NEWEST">Newest first</option>
+            <option value="OLDEST">Oldest first</option>
+            <option value="SALARY">Highest salary</option>
+          </Select>
           <Select aria-label="Region" value={filters.region ?? ''} onChange={(e) => set({ region: e.target.value || undefined, source: undefined })}>
             <option value="">All regions</option>
             {REGIONS.map((r) => (
